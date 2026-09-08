@@ -1,0 +1,11 @@
+Drop a looping alarm tone here named `default_alarm.mp3` (referenced in
+lib/features/ringing/ringing_screen.dart).
+
+Until you add one, the ringing screen still works — RingingScreen catches
+the missing-asset error and just runs without sound, so you can test the
+scheduling/mission/UI flow before you've picked a tone.
+
+A few royalty-free options to start from: Freesound.org (CC0/CC-BY tracks),
+Pixabay Audio, or Zapsplat. Keep it under ~30 seconds — it's looped, not
+played once — and normalize the loudness so the volume ramp in
+RingingScreen._ramp() has room to escalate.

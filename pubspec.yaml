@@ -1,0 +1,45 @@
+name: rise_protocol
+description: An alarm app that actually gets you up — mission-to-dismiss alarms built with Flutter.
+publish_to: 'none'
+version: 0.1.0+1
+
+environment:
+  sdk: '>=3.3.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # State management
+  flutter_riverpod: ^2.5.1
+
+  # Local persistence (no code generation required — keeps this buildable
+  # without running build_runner)
+  sqflite: ^2.3.3+1
+  path: ^1.9.0
+  path_provider: ^2.1.4
+  shared_preferences: ^2.2.3
+
+  # Alarm audio
+  just_audio: ^0.9.40
+
+  # Sensors — wired in for the Phase 2 shake mission
+  sensors_plus: ^5.0.1
+
+  # Permissions (exact alarm, notifications, battery optimization prompts)
+  permission_handler: ^11.3.1
+
+  # Formatting
+  intl: ^0.19.0
+
+  cupertino_icons: ^1.0.8
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^4.0.0
+
+flutter:
+  uses-material-design: true
+  assets:
+    - assets/sounds/

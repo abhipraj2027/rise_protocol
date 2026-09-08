@@ -1,0 +1,57 @@
+name: Build Android APK
+
+# Runs on every push to main, on every pull request (so you catch build
+# breaks before merging), and manually from the Actions tab ("Run workflow")
+# whenever you just want a fresh APK without pushing new code.
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out the repo
+        uses: actions/checkout@v4
+
+      # Flutter's Android build needs a JDK. 17 matches what current
+      # Android Gradle Plugin versions expect.
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      # Pin a specific Flutter version so builds are reproducible instead of
+      # silently picking up whatever "stable" means on a given day. Bump
+      # this deliberately when you upgrade Flutter locally.
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.24.0'
+          channel: 'stable'
+          cache: true
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      # Fails the build on lint/type errors instead of letting them slide
+      # through to a broken APK.
+      - name: Analyze
+        run: flutter analyze
+
+      - name: Build release APK
+        run: flutter build apk --release
+
+      # Makes the APK downloadable from the workflow run's "Artifacts"
+      # section in the GitHub UI, kept for 14 days.
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: rise-protocol-release-apk
+          path: build/app/outputs/flutter-apk/app-release.apk
+          retention-days: 14
