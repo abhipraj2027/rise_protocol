@@ -70,7 +70,19 @@ jobs:
           retention-days: 7
 
       - name: Build release APK
-        run: flutter build apk --release
+        run: |
+          set -o pipefail
+          flutter build apk --release 2>&1 | tee build.txt || status=$?
+          tail -c 60000 build.txt >> "$GITHUB_STEP_SUMMARY"
+          exit ${status:-0}
+
+      - name: Upload build log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: flutter-build-log
+          path: build.txt
+          retention-days: 7
 
       # Makes the APK downloadable from the workflow run's "Artifacts"
       # section in the GitHub UI, kept for 14 days.
