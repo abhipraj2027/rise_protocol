@@ -46,8 +46,9 @@ jobs:
         run: flutter pub get
 
       # Fails the build on lint/type errors instead of letting them slide
-      # through to a broken APK. Output is mirrored into the job summary so
-      # failures are visible without downloading the raw run log.
+      # through to a broken APK. Output is also mirrored into the job summary
+      # and uploaded as an artifact so failures can be inspected without
+      # repo-admin access to the raw run log.
       - name: Analyze
         run: |
           set -o pipefail
@@ -59,6 +60,14 @@ jobs:
             echo '```'
           } >> "$GITHUB_STEP_SUMMARY"
           exit ${status:-0}
+
+      - name: Upload analyze output
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: flutter-analyze-log
+          path: analyze.txt
+          retention-days: 7
 
       - name: Build release APK
         run: flutter build apk --release
