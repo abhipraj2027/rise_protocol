@@ -69,10 +69,15 @@ jobs:
           path: analyze.txt
           retention-days: 7
 
-      - name: Build release APK
+      # --split-per-abi emits one APK per CPU architecture (~17 MB for
+      # arm64-v8a, which is every modern phone) instead of one ~48 MB fat
+      # APK. A universal APK is also built for maximum-compatibility
+      # sideloading.
+      - name: Build release APKs
         run: |
           set -o pipefail
-          flutter build apk --release 2>&1 | tee build.txt || status=$?
+          flutter build apk --release --split-per-abi 2>&1 | tee build.txt || status=$?
+          flutter build apk --release 2>&1 | tee -a build.txt || status=$?
           tail -c 60000 build.txt >> "$GITHUB_STEP_SUMMARY"
           exit ${status:-0}
 
@@ -84,11 +89,13 @@ jobs:
           path: build.txt
           retention-days: 7
 
-      # Makes the APK downloadable from the workflow run's "Artifacts"
-      # section in the GitHub UI, kept for 14 days.
-      - name: Upload APK
+      # Makes the APKs downloadable from the workflow run's "Artifacts"
+      # section in the GitHub UI, kept for 14 days. app-release.apk is the
+      # universal build; app-arm64-v8a-release.apk is the small one for
+      # modern phones.
+      - name: Upload APKs
         uses: actions/upload-artifact@v4
         with:
           name: rise-protocol-release-apk
-          path: build/app/outputs/flutter-apk/app-release.apk
+          path: build/app/outputs/flutter-apk/app-*-release.apk
           retention-days: 14

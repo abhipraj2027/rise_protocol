@@ -16,3 +16,6 @@ android/app/release/
 
 # Misc
 .DS_Store
+
+# Local CI artifact downloads
+_ci_out/
