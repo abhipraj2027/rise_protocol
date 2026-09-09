@@ -46,9 +46,19 @@ jobs:
         run: flutter pub get
 
       # Fails the build on lint/type errors instead of letting them slide
-      # through to a broken APK.
+      # through to a broken APK. Output is mirrored into the job summary so
+      # failures are visible without downloading the raw run log.
       - name: Analyze
-        run: flutter analyze
+        run: |
+          set -o pipefail
+          flutter analyze 2>&1 | tee analyze.txt || status=$?
+          {
+            echo '### flutter analyze'
+            echo '```'
+            cat analyze.txt
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+          exit ${status:-0}
 
       - name: Build release APK
         run: flutter build apk --release
