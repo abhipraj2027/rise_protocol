@@ -1,0 +1,11 @@
+# Keep the Gradle wrapper script LF-only so it stays executable on the
+# Linux CI runner even when the repo is cloned on Windows.
+gradlew text eol=lf
+*.sh text eol=lf
+
+# Binary assets — never touch line endings.
+*.jar binary
+*.png binary
+*.mp3 binary
+*.keystore binary
+*.jks binary

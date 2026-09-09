@@ -1,13 +1,13 @@
 name: Build Android APK
 
-# Runs on every push to main, on every pull request (so you catch build
-# breaks before merging), and manually from the Actions tab ("Run workflow")
-# whenever you just want a fresh APK without pushing new code.
+# Runs on every push to main/master, on every pull request (so you catch
+# build breaks before merging), and manually from the Actions tab ("Run
+# workflow") whenever you just want a fresh APK without pushing new code.
 on:
   push:
-    branches: [main]
+    branches: [main, master]
   pull_request:
-    branches: [main]
+    branches: [main, master]
   workflow_dispatch:
 
 jobs:
@@ -35,6 +35,12 @@ jobs:
           flutter-version: '3.24.0'
           channel: 'stable'
           cache: true
+
+      # The GitHub-hosted runner ships an Android SDK, but make sure the
+      # platform/build-tools this project targets are present and licensed
+      # so the Gradle build doesn't stop to prompt.
+      - name: Accept Android SDK licenses
+        run: yes | flutter doctor --android-licenses || true
 
       - name: Install dependencies
         run: flutter pub get

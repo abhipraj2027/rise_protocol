@@ -46,7 +46,7 @@ class AlarmTile extends StatelessWidget {
                     style: theme.textTheme.headlineMedium?.copyWith(
                       fontWeight: FontWeight.w600,
                       color: dimmed
-                          ? theme.colorScheme.onSurface.withValues(alpha: 0.4)
+                          ? theme.colorScheme.onSurface.withOpacity(0.4)
                           : theme.colorScheme.onSurface,
                     ),
                   ),

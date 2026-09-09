@@ -25,7 +25,7 @@ class PermissionStepCard extends StatelessWidget {
         color: theme.colorScheme.surfaceContainerHigh,
         borderRadius: BorderRadius.circular(16),
         border: isGranted
-            ? Border.all(color: theme.colorScheme.primary.withValues(alpha: 0.4))
+            ? Border.all(color: theme.colorScheme.primary.withOpacity(0.4))
             : null,
       ),
       child: Row(
