@@ -2,10 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/alarm_scheduler.dart';
+import '../../core/theme/app_tokens.dart';
+import '../../core/ui/app_card.dart';
+import '../../core/ui/gap.dart';
+import '../../core/ui/section_header.dart';
+import '../../core/ui/weekday_selector.dart';
 import '../../data/alarm.dart';
 import '../../data/alarm_repository.dart';
-
-const _weekdayLabels = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+import 'alarm_formatting.dart';
 
 /// Create screen when [alarmId] is null, edit screen otherwise.
 class EditAlarmScreen extends ConsumerStatefulWidget {
@@ -29,18 +33,12 @@ class _EditAlarmScreenState extends ConsumerState<EditAlarmScreen> {
   @override
   void initState() {
     super.initState();
-    _time = TimeOfDay.now();
+    _time = TimeOfDay.now().replacing(minute: 0);
     _labelController = TextEditingController();
     _repeatDays = {};
     _missionType = MissionType.math;
     _snoozeMinutes = 5;
-
-    if (widget.alarmId != null) {
-      // Alarms are already in memory via alarmListProvider once loaded;
-      // pull the matching one in didChangeDependencies-safe build below.
-    } else {
-      _loaded = true;
-    }
+    if (widget.alarmId == null) _loaded = true;
   }
 
   void _loadExisting(Alarm alarm) {
@@ -60,48 +58,43 @@ class _EditAlarmScreenState extends ConsumerState<EditAlarmScreen> {
     super.dispose();
   }
 
-  Future<void> _pickTime() async {
-    final picked = await showTimePicker(context: context, initialTime: _time);
-    if (picked != null) setState(() => _time = picked);
-  }
+  Alarm get _draft => (_existing ?? const Alarm(hour: 0, minute: 0)).copyWith(
+        hour: _time.hour,
+        minute: _time.minute,
+        label: _labelController.text.trim(),
+        repeatDays: _repeatDays,
+        missionType: _missionType,
+        snoozeMinutes: _snoozeMinutes,
+        enabled: true,
+      );
 
   Future<void> _save() async {
     final actions = ref.read(scheduledAlarmActionsProvider);
-    final alarm = (_existing ?? const Alarm(hour: 0, minute: 0)).copyWith(
-      hour: _time.hour,
-      minute: _time.minute,
-      label: _labelController.text.trim(),
-      repeatDays: _repeatDays,
-      missionType: _missionType,
-      snoozeMinutes: _snoozeMinutes,
-      enabled: true,
-    );
-
+    final alarm = _draft;
     if (_existing == null) {
       await actions.add(alarm);
     } else {
       await actions.save(alarm);
     }
-
     if (mounted) Navigator.of(context).pop();
   }
 
   Future<void> _delete() async {
-    if (_existing == null) return;
-    await ref.read(scheduledAlarmActionsProvider).remove(_existing!);
+    final existing = _existing;
+    if (existing == null) return;
+    await ref.read(scheduledAlarmActionsProvider).remove(existing);
     if (mounted) Navigator.of(context).pop();
   }
 
   @override
   Widget build(BuildContext context) {
-    // For edit mode, resolve the current alarm from the list provider so
-    // this screen stays correct if the alarm changed elsewhere.
+    // In edit mode, resolve the alarm from the list provider so this screen
+    // stays correct if it changed elsewhere.
     if (widget.alarmId != null) {
       final alarmsAsync = ref.watch(alarmListProvider);
       alarmsAsync.whenData((alarms) {
         final match = alarms.where((a) => a.id == widget.alarmId);
         if (match.isNotEmpty && !_loaded) {
-          // Defer to avoid setState-during-build.
           WidgetsBinding.instance.addPostFrameCallback((_) {
             if (mounted) setState(() => _loadExisting(match.first));
           });
@@ -112,8 +105,6 @@ class _EditAlarmScreenState extends ConsumerState<EditAlarmScreen> {
       }
     }
 
-    final theme = Theme.of(context);
-
     return Scaffold(
       appBar: AppBar(
         title: Text(_existing == null ? 'New alarm' : 'Edit alarm'),
@@ -121,97 +112,397 @@ class _EditAlarmScreenState extends ConsumerState<EditAlarmScreen> {
           if (_existing != null)
             IconButton(
               onPressed: _delete,
-              icon: const Icon(Icons.delete_outline),
+              icon: const Icon(Icons.delete_outline_rounded),
               tooltip: 'Delete alarm',
             ),
         ],
       ),
-      body: ListView(
-        padding: const EdgeInsets.all(20),
+      body: Column(
         children: [
-          Center(
-            child: OutlinedButton(
-              onPressed: _pickTime,
-              style: OutlinedButton.styleFrom(
-                padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 18),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          Expanded(
+            child: ListView(
+              padding: const EdgeInsets.fromLTRB(
+                AppTokens.space20,
+                AppTokens.space8,
+                AppTokens.space20,
+                AppTokens.space24,
               ),
-              child: Text(
-                _time.format(context),
-                style: theme.textTheme.displaySmall?.copyWith(fontWeight: FontWeight.w600),
-              ),
+              children: [
+                _TimeWheel(
+                  time: _time,
+                  onChanged: (t) => setState(() => _time = t),
+                ),
+                const Gap(AppTokens.space8),
+                Center(child: _RingsAtLine(draft: _draft)),
+                const Gap(AppTokens.space32),
+
+                const SectionHeader('Repeat'),
+                const Gap(AppTokens.space12),
+                AppCard(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Center(
+                        child: WeekdaySelector(
+                          selected: _repeatDays,
+                          onChanged: (d) => setState(() => _repeatDays = d),
+                        ),
+                      ),
+                      const Gap(AppTokens.space12),
+                      Center(
+                        child: Text(
+                          repeatSummary(_repeatDays),
+                          style: Theme.of(context).textTheme.bodySmall,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const Gap(AppTokens.space32),
+
+                const SectionHeader(
+                  'Mission to dismiss',
+                  subtitle: 'What you have to do before the alarm will stop.',
+                ),
+                const Gap(AppTokens.space12),
+                for (final m in MissionType.values) ...[
+                  _MissionOption(
+                    mission: m,
+                    selected: m == _missionType,
+                    onTap: m.isImplemented
+                        ? () => setState(() => _missionType = m)
+                        : null,
+                  ),
+                  const Gap(AppTokens.space8),
+                ],
+                const Gap(AppTokens.space24),
+
+                const SectionHeader('Snooze length'),
+                const Gap(AppTokens.space12),
+                AppCard(
+                  child: _Stepper(
+                    value: _snoozeMinutes,
+                    min: 1,
+                    max: 15,
+                    unit: 'min',
+                    onChanged: (v) => setState(() => _snoozeMinutes = v),
+                  ),
+                ),
+                const Gap(AppTokens.space32),
+
+                const SectionHeader('Label'),
+                const Gap(AppTokens.space12),
+                TextField(
+                  controller: _labelController,
+                  textCapitalization: TextCapitalization.sentences,
+                  onChanged: (_) => setState(() {}),
+                  decoration: const InputDecoration(hintText: 'Gym, Work, Flight…'),
+                ),
+              ],
             ),
           ),
-          const SizedBox(height: 28),
-          TextField(
-            controller: _labelController,
-            decoration: const InputDecoration(
-              labelText: 'Label',
-              hintText: 'e.g. Gym, Work, Flight',
-              border: OutlineInputBorder(),
-            ),
-          ),
-          const SizedBox(height: 24),
-          Text('Repeat', style: theme.textTheme.titleSmall),
-          const SizedBox(height: 8),
-          Wrap(
-            spacing: 8,
-            children: List.generate(7, (i) {
-              final weekday = i + 1;
-              final selected = _repeatDays.contains(weekday);
-              return ChoiceChip(
-                label: Text(_weekdayLabels[i]),
-                selected: selected,
-                onSelected: (value) {
-                  setState(() {
-                    if (value) {
-                      _repeatDays.add(weekday);
-                    } else {
-                      _repeatDays.remove(weekday);
-                    }
-                  });
-                },
-              );
-            }),
-          ),
-          const SizedBox(height: 24),
-          Text('Mission to dismiss', style: theme.textTheme.titleSmall),
-          const SizedBox(height: 4),
-          Text(
-            'What you have to do before the alarm will stop.',
-            style: theme.textTheme.bodySmall
-                ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
-          ),
-          const SizedBox(height: 8),
-          ...MissionType.values.map((m) {
-            return RadioListTile<MissionType>(
-              value: m,
-              // ignore: deprecated_member_use
-              groupValue: _missionType,
-              // ignore: deprecated_member_use
-              onChanged: m.isImplemented ? (v) => setState(() => _missionType = v!) : null,
-              title: Text(m.label),
-              subtitle: m.isImplemented ? null : const Text('Coming in a later phase'),
-              contentPadding: EdgeInsets.zero,
-            );
-          }),
-          const SizedBox(height: 12),
-          Text('Snooze length', style: theme.textTheme.titleSmall),
-          Slider(
-            value: _snoozeMinutes.toDouble(),
-            min: 1,
-            max: 15,
-            divisions: 14,
-            label: '$_snoozeMinutes min',
-            onChanged: (v) => setState(() => _snoozeMinutes = v.round()),
-          ),
-          const SizedBox(height: 24),
-          FilledButton(
-            onPressed: _save,
-            style: FilledButton.styleFrom(padding: const EdgeInsets.all(16)),
-            child: const Text('Save alarm'),
+          _SaveBar(
+            label: _existing == null ? 'Add alarm' : 'Save changes',
+            onSave: _save,
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _RingsAtLine extends StatelessWidget {
+  const _RingsAtLine({required this.draft});
+
+  final Alarm draft;
+
+  @override
+  Widget build(BuildContext context) {
+    final t = context.tokens;
+    final now = DateTime.now();
+    final fireAt = DateTime.fromMillisecondsSinceEpoch(
+      draft.nextTriggerMillis(from: now),
+    );
+    return Text(
+      'Rings ${dayAndTime(fireAt, now: now)}  ·  ${humanizeUntil(fireAt.difference(now))}',
+      style: Theme.of(context)
+          .textTheme
+          .bodyMedium
+          ?.copyWith(color: t.brand, fontWeight: FontWeight.w600),
+    );
+  }
+}
+
+class _TimeWheel extends StatelessWidget {
+  const _TimeWheel({required this.time, required this.onChanged});
+
+  final TimeOfDay time;
+  final ValueChanged<TimeOfDay> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final text = Theme.of(context).textTheme;
+    return SizedBox(
+      height: 176,
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          _WheelColumn(
+            count: 24,
+            selected: time.hour,
+            onSelected: (h) => onChanged(time.replacing(hour: h)),
+          ),
+          Text(':', style: text.displayMedium?.copyWith(color: context.tokens.textFaint)),
+          _WheelColumn(
+            count: 60,
+            selected: time.minute,
+            onSelected: (m) => onChanged(time.replacing(minute: m)),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _WheelColumn extends StatefulWidget {
+  const _WheelColumn({
+    required this.count,
+    required this.selected,
+    required this.onSelected,
+  });
+
+  final int count;
+  final int selected;
+  final ValueChanged<int> onSelected;
+
+  @override
+  State<_WheelColumn> createState() => _WheelColumnState();
+}
+
+class _WheelColumnState extends State<_WheelColumn> {
+  late final FixedExtentScrollController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = FixedExtentScrollController(initialItem: widget.selected);
+  }
+
+  @override
+  void didUpdateWidget(covariant _WheelColumn old) {
+    super.didUpdateWidget(old);
+    if (widget.selected != old.selected &&
+        _controller.hasClients &&
+        _controller.selectedItem != widget.selected) {
+      _controller.jumpToItem(widget.selected);
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final t = context.tokens;
+    final text = Theme.of(context).textTheme;
+    return SizedBox(
+      width: 80,
+      child: ListWheelScrollView.useDelegate(
+        controller: _controller,
+        itemExtent: 58,
+        perspective: 0.004,
+        diameterRatio: 1.5,
+        physics: const FixedExtentScrollPhysics(),
+        onSelectedItemChanged: widget.onSelected,
+        childDelegate: ListWheelChildBuilderDelegate(
+          childCount: widget.count,
+          builder: (context, i) {
+            final isSel = i == widget.selected;
+            return Center(
+              child: Text(
+                i.toString().padLeft(2, '0'),
+                style: text.displaySmall?.copyWith(
+                  color: isSel ? t.brand : t.textFaint,
+                  fontWeight: isSel ? FontWeight.w700 : FontWeight.w300,
+                ),
+              ),
+            );
+          },
+        ),
+      ),
+    );
+  }
+}
+
+class _MissionOption extends StatelessWidget {
+  const _MissionOption({
+    required this.mission,
+    required this.selected,
+    this.onTap,
+  });
+
+  final MissionType mission;
+  final bool selected;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final t = context.tokens;
+    final text = Theme.of(context).textTheme;
+    final enabled = onTap != null;
+
+    return AppCard(
+      onTap: onTap,
+      selected: selected,
+      child: Opacity(
+        opacity: enabled ? 1.0 : 0.55,
+        child: Row(
+          children: [
+            Icon(_iconFor(mission), color: selected ? t.brand : t.textSecondary),
+            const Gap.w(AppTokens.space12),
+            Expanded(
+              child: Text(
+                mission == MissionType.none ? 'None (tap to dismiss)' : mission.label,
+                style: text.titleSmall?.copyWith(color: t.textPrimary),
+              ),
+            ),
+            if (!mission.isImplemented)
+              const _Tag(text: 'Later')
+            else if (selected)
+              Icon(Icons.check_circle_rounded, color: t.brand, size: 20),
+          ],
+        ),
+      ),
+    );
+  }
+
+  static IconData _iconFor(MissionType m) => switch (m) {
+        MissionType.none => Icons.touch_app_outlined,
+        MissionType.math => Icons.calculate_outlined,
+        MissionType.shake => Icons.vibration,
+        MissionType.photo => Icons.photo_camera_outlined,
+        MissionType.barcode => Icons.qr_code_scanner,
+      };
+}
+
+class _Tag extends StatelessWidget {
+  const _Tag({required this.text});
+
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    final t = context.tokens;
+    return Container(
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppTokens.space8,
+        vertical: AppTokens.space2,
+      ),
+      decoration: BoxDecoration(
+        color: t.surface2,
+        borderRadius: AppTokens.cornerSm,
+      ),
+      child: Text(
+        text.toUpperCase(),
+        style: Theme.of(context)
+            .textTheme
+            .labelSmall
+            ?.copyWith(color: t.textFaint),
+      ),
+    );
+  }
+}
+
+class _Stepper extends StatelessWidget {
+  const _Stepper({
+    required this.value,
+    required this.min,
+    required this.max,
+    required this.unit,
+    required this.onChanged,
+  });
+
+  final int value;
+  final int min;
+  final int max;
+  final String unit;
+  final ValueChanged<int> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final text = Theme.of(context).textTheme;
+    return Row(
+      children: [
+        Expanded(child: Text('$value $unit', style: text.titleMedium)),
+        _RoundIconButton(
+          icon: Icons.remove_rounded,
+          onTap: value > min ? () => onChanged(value - 1) : null,
+        ),
+        const Gap.w(AppTokens.space12),
+        _RoundIconButton(
+          icon: Icons.add_rounded,
+          onTap: value < max ? () => onChanged(value + 1) : null,
+        ),
+      ],
+    );
+  }
+}
+
+class _RoundIconButton extends StatelessWidget {
+  const _RoundIconButton({required this.icon, this.onTap});
+
+  final IconData icon;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final t = context.tokens;
+    final enabled = onTap != null;
+    return Material(
+      color: t.surface2,
+      shape: const CircleBorder(),
+      child: InkWell(
+        onTap: onTap,
+        customBorder: const CircleBorder(),
+        child: Padding(
+          padding: const EdgeInsets.all(AppTokens.space8),
+          child: Icon(
+            icon,
+            size: 20,
+            color: enabled ? t.textPrimary : t.textFaint,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _SaveBar extends StatelessWidget {
+  const _SaveBar({required this.label, required this.onSave});
+
+  final String label;
+  final Future<void> Function() onSave;
+
+  @override
+  Widget build(BuildContext context) {
+    final t = context.tokens;
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: t.surface0,
+        border: Border(top: BorderSide(color: t.hairline)),
+      ),
+      child: SafeArea(
+        top: false,
+        child: Padding(
+          padding: const EdgeInsets.all(AppTokens.space16),
+          child: FilledButton(
+            onPressed: () => onSave(),
+            child: Text(label),
+          ),
+        ),
       ),
     );
   }
