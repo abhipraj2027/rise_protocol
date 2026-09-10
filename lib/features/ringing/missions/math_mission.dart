@@ -1,6 +1,7 @@
 import 'dart:math';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart' show HapticFeedback;
 
 /// A single math problem the user must answer correctly to pass the
 /// mission. `difficulty` widens the operand range and adds operations —
@@ -79,12 +80,14 @@ class _MathMissionViewState extends State<MathMissionView> {
       if (_index == _problems.length - 1) {
         widget.onComplete();
       } else {
+        HapticFeedback.selectionClick();
         setState(() {
           _index++;
           _error = null;
         });
       }
     } else {
+      HapticFeedback.heavyImpact();
       setState(() => _error = 'Not quite — try again');
       _controller.clear();
     }

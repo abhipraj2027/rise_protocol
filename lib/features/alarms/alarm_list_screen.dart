@@ -1,10 +1,12 @@
 import 'package:flutter/foundation.dart' show kDebugMode;
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart' show HapticFeedback;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/alarm_scheduler.dart';
 import '../../core/theme/app_tokens.dart';
 import '../../core/ui/gap.dart';
+import '../../core/ui/skeleton.dart';
 import '../../core/ui/stagger_in.dart';
 import '../../data/alarm.dart';
 import '../../data/alarm_repository.dart';
@@ -44,7 +46,7 @@ class AlarmListScreen extends ConsumerWidget {
         ],
       ),
       body: alarmsAsync.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
+        loading: () => const AlarmListSkeleton(),
         error: (err, _) => _ErrorState(message: '$err'),
         data: (alarms) {
           final sorted = [...alarms]..sort(_byTimeOfDay);
@@ -103,6 +105,7 @@ class AlarmListScreen extends ConsumerWidget {
     WidgetRef ref,
     Alarm alarm,
   ) async {
+    HapticFeedback.mediumImpact();
     final actions = ref.read(scheduledAlarmActionsProvider);
     final messenger = ScaffoldMessenger.of(context);
     final name = alarm.label.trim().isNotEmpty

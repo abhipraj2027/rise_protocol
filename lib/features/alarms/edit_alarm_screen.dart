@@ -72,6 +72,7 @@ class _EditAlarmScreenState extends ConsumerState<EditAlarmScreen> {
       );
 
   Future<void> _save() async {
+    HapticFeedback.lightImpact();
     final actions = ref.read(scheduledAlarmActionsProvider);
     final alarm = _draft;
     if (_existing == null) {
@@ -85,6 +86,7 @@ class _EditAlarmScreenState extends ConsumerState<EditAlarmScreen> {
   Future<void> _delete() async {
     final existing = _existing;
     if (existing == null) return;
+    HapticFeedback.mediumImpact();
     await ref.read(scheduledAlarmActionsProvider).remove(existing);
     if (mounted) Navigator.of(context).pop();
   }
