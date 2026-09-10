@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../core/theme/app_tokens.dart';
 import '../../core/ui/app_card.dart';
 import '../../core/ui/big_switch.dart';
+import '../../core/ui/clock_display.dart';
 import '../../core/ui/gap.dart';
 import '../../core/ui/glass_surface.dart';
 import '../../core/ui/primary_button.dart';
@@ -46,6 +47,18 @@ class _GalleryScreenState extends State<GalleryScreen> {
                 Text('Body medium — the quiet supporting line.', style: text.bodyMedium),
                 Text('LABEL SMALL', style: text.labelSmall),
               ],
+            ),
+          ),
+          const Gap(AppTokens.space32),
+
+          const SectionHeader('ClockDisplay', subtitle: 'tabular blocks, breathing colon'),
+          const Gap(AppTokens.space12),
+          AppCard(
+            child: Center(
+              child: ClockDisplay(
+                time: DateTime.now(),
+                style: text.displayLarge?.copyWith(color: t.textPrimary),
+              ),
             ),
           ),
           const Gap(AppTokens.space32),
