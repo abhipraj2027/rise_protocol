@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart' show HapticFeedback;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/alarm_scheduler.dart';
@@ -318,7 +319,10 @@ class _WheelColumnState extends State<_WheelColumn> {
         perspective: 0.004,
         diameterRatio: 1.5,
         physics: const FixedExtentScrollPhysics(),
-        onSelectedItemChanged: widget.onSelected,
+        onSelectedItemChanged: (i) {
+          HapticFeedback.selectionClick();
+          widget.onSelected(i);
+        },
         childDelegate: ListWheelChildBuilderDelegate(
           childCount: widget.count,
           builder: (context, i) {

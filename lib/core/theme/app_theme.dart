@@ -58,6 +58,15 @@ class AppTheme {
       fontFamily: 'Inter',
       scaffoldBackgroundColor: tokens.surface0,
       splashFactory: InkSparkle.splashFactory,
+      pageTransitionsTheme: const PageTransitionsTheme(
+        builders: {
+          TargetPlatform.android: _SpringPageTransitionsBuilder(),
+          TargetPlatform.iOS: _SpringPageTransitionsBuilder(),
+          TargetPlatform.macOS: _SpringPageTransitionsBuilder(),
+          TargetPlatform.windows: _SpringPageTransitionsBuilder(),
+          TargetPlatform.linux: _SpringPageTransitionsBuilder(),
+        },
+      ),
       extensions: [tokens],
     );
 
@@ -243,6 +252,37 @@ class AppTheme {
         color: t.textFaint,
         letterSpacing: 1.4,
         fontWeight: FontWeight.w600,
+      ),
+    );
+  }
+}
+
+/// Push/pop transition used app-wide: a quick fade with a small upward
+/// settle. No horizontal slide — screens feel like they resolve into place
+/// rather than being pushed off a stack.
+class _SpringPageTransitionsBuilder extends PageTransitionsBuilder {
+  const _SpringPageTransitionsBuilder();
+
+  static final Animatable<double> _fade =
+      CurveTween(curve: Curves.easeOutCubic);
+  static final Animatable<Offset> _slide = Tween<Offset>(
+    begin: const Offset(0, 0.02),
+    end: Offset.zero,
+  ).chain(CurveTween(curve: Curves.easeOutCubic));
+
+  @override
+  Widget buildTransitions<T>(
+    PageRoute<T> route,
+    BuildContext context,
+    Animation<double> animation,
+    Animation<double> secondaryAnimation,
+    Widget child,
+  ) {
+    return FadeTransition(
+      opacity: animation.drive(_fade),
+      child: SlideTransition(
+        position: animation.drive(_slide),
+        child: child,
       ),
     );
   }
