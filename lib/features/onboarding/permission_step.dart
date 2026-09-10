@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:permission_handler/permission_handler.dart';
 
 import '../../core/alarm_bridge.dart';
@@ -55,6 +56,7 @@ class PermissionStep {
       case PermissionStepKind.exactAlarm:
         return bridge.canScheduleExactAlarms();
       case PermissionStepKind.notifications:
+        if (kIsWeb) return true;
         return (await Permission.notification.status).isGranted;
       case PermissionStepKind.batteryOptimization:
         return bridge.isIgnoringBatteryOptimizations();
@@ -66,7 +68,7 @@ class PermissionStep {
       case PermissionStepKind.exactAlarm:
         await bridge.openExactAlarmSettings();
       case PermissionStepKind.notifications:
-        await Permission.notification.request();
+        if (!kIsWeb) await Permission.notification.request();
       case PermissionStepKind.batteryOptimization:
         await bridge.requestIgnoreBatteryOptimizations();
     }
