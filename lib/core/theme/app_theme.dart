@@ -55,6 +55,7 @@ class AppTheme {
       useMaterial3: true,
       brightness: brightness,
       colorScheme: scheme,
+      fontFamily: 'Inter',
       scaffoldBackgroundColor: tokens.surface0,
       splashFactory: InkSparkle.splashFactory,
       extensions: [tokens],
@@ -170,9 +171,11 @@ class AppTheme {
     );
   }
 
-  /// Type scale. The clock readouts (`displayLarge` / `displayMedium`) are
-  /// light-weight and tightly tracked so a big time still feels calm;
-  /// body/label sizes stay close to Material defaults.
+  /// Type scale. Inter carries everything except the display sizes, which
+  /// switch to Space Grotesk — the clock and countdowns read as an
+  /// instrument: tight tracking, tabular figures, no jitter.
+  static const _display = 'Space Grotesk';
+
   static TextTheme _textTheme(TextTheme base, AppTokens t) {
     final scaled = base.apply(
       bodyColor: t.textPrimary,
@@ -180,38 +183,56 @@ class AppTheme {
     );
     return scaled.copyWith(
       displayLarge: scaled.displayLarge?.copyWith(
-        fontWeight: FontWeight.w200,
-        letterSpacing: -1.5,
+        fontFamily: _display,
+        fontWeight: FontWeight.w300,
+        letterSpacing: -2.0,
         height: 1.0,
         fontFeatures: const [FontFeature.tabularFigures()],
       ),
       displayMedium: scaled.displayMedium?.copyWith(
-        fontWeight: FontWeight.w300,
-        letterSpacing: -1.0,
+        fontFamily: _display,
+        fontWeight: FontWeight.w400,
+        letterSpacing: -1.4,
         height: 1.0,
         fontFeatures: const [FontFeature.tabularFigures()],
       ),
       displaySmall: scaled.displaySmall?.copyWith(
-        fontWeight: FontWeight.w600,
-        letterSpacing: -0.5,
+        fontFamily: _display,
+        fontWeight: FontWeight.w500,
+        letterSpacing: -0.6,
+        fontFeatures: const [FontFeature.tabularFigures()],
       ),
       headlineMedium: scaled.headlineMedium?.copyWith(
-        fontWeight: FontWeight.w700,
-        letterSpacing: -0.5,
+        fontFamily: _display,
+        fontWeight: FontWeight.w500,
+        letterSpacing: -0.8,
       ),
-      headlineSmall: scaled.headlineSmall?.copyWith(fontWeight: FontWeight.w700),
-      titleLarge: scaled.titleLarge?.copyWith(fontWeight: FontWeight.w700),
-      titleMedium: scaled.titleMedium?.copyWith(fontWeight: FontWeight.w600),
+      headlineSmall: scaled.headlineSmall?.copyWith(
+        fontWeight: FontWeight.w700,
+        letterSpacing: -0.4,
+      ),
+      titleLarge: scaled.titleLarge?.copyWith(
+        fontWeight: FontWeight.w700,
+        letterSpacing: -0.3,
+      ),
+      titleMedium: scaled.titleMedium?.copyWith(
+        fontWeight: FontWeight.w600,
+        letterSpacing: -0.2,
+      ),
       titleSmall: scaled.titleSmall?.copyWith(
         fontWeight: FontWeight.w600,
+        letterSpacing: -0.1,
         color: t.textSecondary,
       ),
-      bodyMedium: scaled.bodyMedium?.copyWith(color: t.textSecondary, height: 1.4),
-      bodySmall: scaled.bodySmall?.copyWith(color: t.textFaint, height: 1.35),
-      labelLarge: scaled.labelLarge?.copyWith(fontWeight: FontWeight.w700),
+      bodyMedium: scaled.bodyMedium?.copyWith(color: t.textSecondary, height: 1.45),
+      bodySmall: scaled.bodySmall?.copyWith(color: t.textFaint, height: 1.4),
+      labelLarge: scaled.labelLarge?.copyWith(
+        fontWeight: FontWeight.w700,
+        letterSpacing: 0,
+      ),
       labelSmall: scaled.labelSmall?.copyWith(
         color: t.textFaint,
-        letterSpacing: 0.6,
+        letterSpacing: 1.4,
         fontWeight: FontWeight.w600,
       ),
     );

@@ -43,3 +43,13 @@ flutter:
   uses-material-design: true
   assets:
     - assets/sounds/
+
+  # Variable fonts (SIL OFL). Inter carries the UI; Space Grotesk is the
+  # display face for the clock and countdowns — tight, tabular, precise.
+  fonts:
+    - family: Inter
+      fonts:
+        - asset: assets/fonts/Inter.ttf
+    - family: Space Grotesk
+      fonts:
+        - asset: assets/fonts/SpaceGrotesk.ttf
