@@ -122,21 +122,34 @@ class AppTokens extends ThemeExtension<AppTokens> {
   static const Curve easeEmphasized = Curves.easeOutBack;
 
   // ---- Elevation ----------------------------------------------------------
-  /// Soft resting shadow for cards on [surface0]. Kept subtle — this app is
-  /// mostly flat, shadows are for genuine layering (sheets, FAB) only.
+  /// Soft resting shadow for raised cards (the next-alarm hero, sheets).
+  /// Large and diffuse rather than tight — reads as depth, not a drop line.
   List<BoxShadow> get shadowCard => [
         BoxShadow(
-          color: Colors.black.withOpacity(isDark ? 0.35 : 0.06),
-          blurRadius: 16,
-          offset: const Offset(0, 4),
+          color: Colors.black.withOpacity(isDark ? 0.40 : 0.05),
+          blurRadius: 24,
+          spreadRadius: -4,
+          offset: const Offset(0, 8),
         ),
       ];
 
   List<BoxShadow> get shadowLifted => [
         BoxShadow(
-          color: Colors.black.withOpacity(isDark ? 0.5 : 0.12),
-          blurRadius: 28,
-          offset: const Offset(0, 12),
+          color: Colors.black.withOpacity(isDark ? 0.55 : 0.14),
+          blurRadius: 48,
+          spreadRadius: -8,
+          offset: const Offset(0, 20),
+        ),
+      ];
+
+  /// Amber glow for the one primary action / hero per screen. In the sleek
+  /// dark UI the brand shows up as this halo, not as big flat fills.
+  List<BoxShadow> get glow => [
+        BoxShadow(
+          color: brand.withOpacity(isDark ? 0.30 : 0.20),
+          blurRadius: 40,
+          spreadRadius: -12,
+          offset: const Offset(0, 8),
         ),
       ];
 
@@ -145,67 +158,67 @@ class AppTokens extends ThemeExtension<AppTokens> {
   factory AppTokens.light() {
     return const AppTokens(
       isDark: false,
-      brand: Color(0xFFC85A1E),
-      brandMuted: Color(0xFFF3E2D5),
+      brand: Color(0xFFB35A22),
+      brandMuted: Color(0xFFF6E7DA),
       onBrand: Color(0xFFFFFFFF),
-      missionAccent: Color(0xFF2E7D6F),
+      missionAccent: Color(0xFF1F7A6C),
       success: Color(0xFF2E7D4F),
-      warning: Color(0xFFB98900),
+      warning: Color(0xFFA9760C),
       danger: Color(0xFFB5432F),
-      surface0: Color(0xFFF7F5F0),
+      surface0: Color(0xFFF6F6F8),
       surface1: Color(0xFFFFFFFF),
-      surface2: Color(0xFFEFEBE3),
-      hairline: Color(0x1A211D17),
-      textPrimary: Color(0xFF211D17),
-      textSecondary: Color(0xFF5C5346),
-      textFaint: Color(0xFF9A8F7E),
-      ringingBackground: Color(0xFF0D0B08),
-      ringingForeground: Color(0xFFF6EFE3),
+      surface2: Color(0xFFECECEF),
+      hairline: Color(0x14101014),
+      textPrimary: Color(0xFF16161A),
+      textSecondary: Color(0xFF56555E),
+      textFaint: Color(0xFF95949E),
+      ringingBackground: Color(0xFF060608),
+      ringingForeground: Color(0xFFF7F6FA),
     );
   }
 
   factory AppTokens.dark() {
     return const AppTokens(
       isDark: true,
-      brand: Color(0xFFE58A4D),
-      brandMuted: Color(0xFF3A2A1E),
-      onBrand: Color(0xFF231407),
-      missionAccent: Color(0xFF4FB3A2),
-      success: Color(0xFF5DBE86),
-      warning: Color(0xFFE0B15A),
-      danger: Color(0xFFE07A63),
-      surface0: Color(0xFF15130F),
-      surface1: Color(0xFF201C17),
-      surface2: Color(0xFF2C2620),
-      hairline: Color(0x1FF2EDE3),
-      textPrimary: Color(0xFFF2EDE3),
-      textSecondary: Color(0xFFBDB3A4),
-      textFaint: Color(0xFF7E7566),
-      ringingBackground: Color(0xFF0D0B08),
-      ringingForeground: Color(0xFFF6EFE3),
+      brand: Color(0xFFF2A65E),
+      brandMuted: Color(0xFF2A1F16),
+      onBrand: Color(0xFF1A1206),
+      missionAccent: Color(0xFF5BC0AE),
+      success: Color(0xFF57C98A),
+      warning: Color(0xFFE6B95E),
+      danger: Color(0xFFEB7A63),
+      surface0: Color(0xFF0A0A0C),
+      surface1: Color(0xFF121216),
+      surface2: Color(0xFF1B1B21),
+      hairline: Color(0x14FFFFFF),
+      textPrimary: Color(0xFFF4F3F6),
+      textSecondary: Color(0xFFA9A7B2),
+      textFaint: Color(0xFF6E6C77),
+      ringingBackground: Color(0xFF060608),
+      ringingForeground: Color(0xFFF6F5F8),
     );
   }
 
-  /// Ringing palette — a fixed dark scheme regardless of app theme.
+  /// Ringing palette — a fixed, deeper dark scheme regardless of app theme.
   factory AppTokens.ringing() {
     return const AppTokens(
       isDark: true,
-      brand: Color(0xFFE58A4D),
-      brandMuted: Color(0xFF3A2A1E),
-      onBrand: Color(0xFF231407),
-      missionAccent: Color(0xFF4FB3A2),
-      success: Color(0xFF5DBE86),
-      warning: Color(0xFFE0B15A),
-      danger: Color(0xFFE07A63),
-      surface0: Color(0xFF0D0B08),
-      surface1: Color(0xFF17130E),
-      surface2: Color(0xFF221C15),
-      hairline: Color(0x1FF2EDE3),
-      textPrimary: Color(0xFFF6EFE3),
-      textSecondary: Color(0xFFC9BEAD),
-      textFaint: Color(0xFF8A8073),
-      ringingBackground: Color(0xFF0D0B08),
-      ringingForeground: Color(0xFFF6EFE3),
+      brand: Color(0xFFF2A65E),
+      brandMuted: Color(0xFF2A1F16),
+      onBrand: Color(0xFF1A1206),
+      missionAccent: Color(0xFF5BC0AE),
+      success: Color(0xFF57C98A),
+      warning: Color(0xFFE6B95E),
+      danger: Color(0xFFEB7A63),
+      surface0: Color(0xFF060608),
+      surface1: Color(0xFF0E0E12),
+      surface2: Color(0xFF17171D),
+      hairline: Color(0x14FFFFFF),
+      textPrimary: Color(0xFFF7F6FA),
+      textSecondary: Color(0xFFB6B4C0),
+      textFaint: Color(0xFF75737E),
+      ringingBackground: Color(0xFF060608),
+      ringingForeground: Color(0xFFF7F6FA),
     );
   }
 

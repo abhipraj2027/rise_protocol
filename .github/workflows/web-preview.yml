@@ -10,7 +10,7 @@ name: Web UI preview
 
 on:
   push:
-    branches: [master, 'preview/**']
+    branches: [master, 'preview/**', 'premium/**']
   workflow_dispatch:
 
 permissions:
@@ -42,8 +42,10 @@ jobs:
       - name: Install dependencies
         run: flutter pub get
 
+      # --pwa-strategy=none skips the service worker so a redeploy is visible
+      # on a normal reload instead of needing a hard refresh.
       - name: Build web
-        run: flutter build web --release --base-href /rise_protocol/
+        run: flutter build web --release --base-href /rise_protocol/ --pwa-strategy=none
 
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3

@@ -26,6 +26,9 @@ class RiseProtocolApp extends ConsumerWidget {
       debugShowCheckedModeBanner: false,
       theme: AppTheme.light(),
       darkTheme: AppTheme.dark(),
+      // Dark-first: the app is used at night and the design is tuned for the
+      // dark palette. A settings toggle can relax this to ThemeMode.system.
+      themeMode: ThemeMode.dark,
       // The native full-screen-intent Activity launches a *second* Flutter
       // engine directly into the ringing route (see
       // android/.../AlarmRingingActivity.kt), passing the alarm id + mission
