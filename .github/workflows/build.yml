@@ -5,7 +5,7 @@ name: Build Android APK
 # workflow") whenever you just want a fresh APK without pushing new code.
 on:
   push:
-    branches: [main, master, 'redesign/**', 'preview/**']
+    branches: [main, master, 'redesign/**', 'preview/**', 'premium/**']
   pull_request:
     branches: [main, master]
   workflow_dispatch:

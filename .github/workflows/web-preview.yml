@@ -10,7 +10,7 @@ name: Web UI preview
 
 on:
   push:
-    branches: [master, 'preview/**']
+    branches: [master, 'preview/**', 'premium/**']
   workflow_dispatch:
 
 permissions:
