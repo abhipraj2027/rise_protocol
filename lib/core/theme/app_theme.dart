@@ -168,6 +168,15 @@ class AppTheme {
         contentPadding: EdgeInsets.zero,
         iconColor: tokens.textSecondary,
       ),
+      floatingActionButtonTheme: FloatingActionButtonThemeData(
+        backgroundColor: tokens.brand,
+        foregroundColor: tokens.onBrand,
+        elevation: 0,
+        focusElevation: 0,
+        hoverElevation: 0,
+        highlightElevation: 0,
+        shape: const StadiumBorder(),
+      ),
     );
   }
 
