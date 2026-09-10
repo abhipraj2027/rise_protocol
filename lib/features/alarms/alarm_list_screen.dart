@@ -67,7 +67,7 @@ class AlarmListScreen extends ConsumerWidget {
                     onToggle: (v) => actions.setEnabled(alarm, v),
                     onDismissed: () => _deleteWithUndo(context, ref, alarm),
                   ),
-                  const Gap(AppTokens.space10),
+                  const Gap(AppTokens.space12),
                 ],
             ],
           );
