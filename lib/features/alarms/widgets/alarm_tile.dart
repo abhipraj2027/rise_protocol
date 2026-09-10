@@ -1,10 +1,14 @@
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
 
+import '../../../core/theme/app_tokens.dart';
+import '../../../core/ui/app_card.dart';
+import '../../../core/ui/big_switch.dart';
+import '../../../core/ui/weekday_selector.dart';
 import '../../../data/alarm.dart';
+import '../alarm_formatting.dart';
 
-const _weekdayLabels = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
-
+/// One alarm in the list: big time, a quiet meta line (repeat · mission),
+/// day pips when it repeats, and the on/off toggle. Dimmed when disabled.
 class AlarmTile extends StatelessWidget {
   const AlarmTile({
     super.key,
@@ -19,104 +23,66 @@ class AlarmTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final time = TimeOfDay(hour: alarm.hour, minute: alarm.minute);
-    final timeText = DateFormat.jm().format(
-      DateTime(2000, 1, 1, time.hour, time.minute),
-    );
-    final theme = Theme.of(context);
-    final dimmed = !alarm.enabled;
+    final t = context.tokens;
+    final text = Theme.of(context).textTheme;
+    final dim = !alarm.enabled;
 
-    return InkWell(
+    Color fade(Color c) => dim ? c.withOpacity(0.45) : c;
+
+    return AppCard(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(16),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-        decoration: BoxDecoration(
-          color: theme.colorScheme.surfaceContainerHigh,
-          borderRadius: BorderRadius.circular(16),
-        ),
-        child: Row(
-          children: [
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    timeText,
-                    style: theme.textTheme.headlineMedium?.copyWith(
-                      fontWeight: FontWeight.w600,
-                      color: dimmed
-                          ? theme.colorScheme.onSurface.withOpacity(0.4)
-                          : theme.colorScheme.onSurface,
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  alarm.clockLabel,
+                  style: text.displaySmall?.copyWith(color: fade(t.textPrimary)),
+                ),
+                const SizedBox(height: AppTokens.space4),
+                Text(
+                  _metaLine,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: text.bodySmall?.copyWith(color: fade(t.textSecondary)),
+                ),
+                if (alarm.isRepeating) ...[
+                  const SizedBox(height: AppTokens.space12),
+                  Opacity(
+                    opacity: dim ? 0.45 : 1.0,
+                    child: WeekdaySelector(
+                      selected: alarm.repeatDays,
+                      readOnly: true,
+                      size: 22,
                     ),
                   ),
-                  const SizedBox(height: 4),
-                  Row(
-                    children: [
-                      if (alarm.label.isNotEmpty) ...[
-                        Text(
-                          alarm.label,
-                          style: theme.textTheme.bodyMedium?.copyWith(
-                            color: theme.colorScheme.onSurfaceVariant,
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                      ],
-                      Icon(
-                        alarm.missionType == MissionType.none
-                            ? Icons.touch_app_outlined
-                            : Icons.flag_outlined,
-                        size: 14,
-                        color: theme.colorScheme.onSurfaceVariant,
-                      ),
-                      const SizedBox(width: 4),
-                      Text(
-                        alarm.missionType.label,
-                        style: theme.textTheme.bodySmall?.copyWith(
-                          color: theme.colorScheme.onSurfaceVariant,
-                        ),
-                      ),
-                    ],
-                  ),
-                  if (alarm.isRepeating) ...[
-                    const SizedBox(height: 8),
-                    Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: List.generate(7, (i) {
-                        final weekday = i + 1;
-                        final active = alarm.repeatDays.contains(weekday);
-                        return Container(
-                          width: 22,
-                          height: 22,
-                          margin: const EdgeInsets.only(right: 6),
-                          alignment: Alignment.center,
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            color: active
-                                ? theme.colorScheme.primary
-                                : theme.colorScheme.surfaceContainerHighest,
-                          ),
-                          child: Text(
-                            _weekdayLabels[i],
-                            style: TextStyle(
-                              fontSize: 10,
-                              fontWeight: FontWeight.w600,
-                              color: active
-                                  ? theme.colorScheme.onPrimary
-                                  : theme.colorScheme.onSurfaceVariant,
-                            ),
-                          ),
-                        );
-                      }),
-                    ),
-                  ],
                 ],
-              ),
+              ],
             ),
-            Switch(value: alarm.enabled, onChanged: onToggle),
-          ],
-        ),
+          ),
+          const SizedBox(width: AppTokens.space12),
+          Padding(
+            padding: const EdgeInsets.only(top: AppTokens.space4),
+            child: BigSwitch(value: alarm.enabled, onChanged: onToggle),
+          ),
+        ],
       ),
     );
+  }
+
+  String get _metaLine {
+    final repeat = repeatSummary(alarm.repeatDays);
+    final mission = alarm.missionType == MissionType.none
+        ? 'Tap to dismiss'
+        : alarm.missionType.label;
+    final label = alarm.label.trim();
+    return [
+      if (label.isNotEmpty) label,
+      repeat,
+      mission,
+    ].join('  ·  ');
   }
 }

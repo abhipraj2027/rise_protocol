@@ -3,10 +3,15 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/alarm_scheduler.dart';
+import '../../core/theme/app_tokens.dart';
+import '../../core/ui/gap.dart';
+import '../../data/alarm.dart';
 import '../../data/alarm_repository.dart';
 import '../onboarding/permission_onboarding_screen.dart';
+import 'alarm_formatting.dart';
 import 'edit_alarm_screen.dart';
 import 'widgets/alarm_tile.dart';
+import 'widgets/next_alarm_hero.dart';
 
 class AlarmListScreen extends ConsumerWidget {
   const AlarmListScreen({super.key});
@@ -39,51 +44,109 @@ class AlarmListScreen extends ConsumerWidget {
       ),
       body: alarmsAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
-        error: (err, _) => Center(child: Text('Could not load alarms: $err')),
+        error: (err, _) => _ErrorState(message: '$err'),
         data: (alarms) {
-          if (alarms.isEmpty) {
-            return const _EmptyState();
-          }
-          return ListView.separated(
-            padding: const EdgeInsets.fromLTRB(16, 12, 16, 96),
-            itemCount: alarms.length,
-            separatorBuilder: (_, __) => const SizedBox(height: 10),
-            itemBuilder: (context, i) {
-              final alarm = alarms[i];
-              return Dismissible(
-                key: ValueKey(alarm.id),
-                direction: DismissDirection.endToStart,
-                background: Container(
-                  alignment: Alignment.centerRight,
-                  padding: const EdgeInsets.only(right: 24),
-                  decoration: BoxDecoration(
-                    color: Theme.of(context).colorScheme.errorContainer,
-                    borderRadius: BorderRadius.circular(16),
+          final sorted = [...alarms]..sort(_byTimeOfDay);
+          return ListView(
+            padding: const EdgeInsets.fromLTRB(
+              AppTokens.space16,
+              AppTokens.space12,
+              AppTokens.space16,
+              AppTokens.space56 + AppTokens.space40,
+            ),
+            children: [
+              NextAlarmHero(alarms: sorted),
+              const Gap(AppTokens.space24),
+              if (sorted.isEmpty)
+                const _EmptyState()
+              else
+                for (final alarm in sorted) ...[
+                  _DismissibleAlarm(
+                    alarm: alarm,
+                    onTap: () => _openEditor(context, alarm.id),
+                    onToggle: (v) => actions.setEnabled(alarm, v),
+                    onDismissed: () => _deleteWithUndo(context, ref, alarm),
                   ),
-                  child: const Icon(Icons.delete_outline),
-                ),
-                onDismissed: (_) => actions.remove(alarm),
-                child: AlarmTile(
-                  alarm: alarm,
-                  onTap: () => Navigator.of(context).push(
-                    MaterialPageRoute(
-                      builder: (_) => EditAlarmScreen(alarmId: alarm.id),
-                    ),
-                  ),
-                  onToggle: (value) => actions.setEnabled(alarm, value),
-                ),
-              );
-            },
+                  const Gap(AppTokens.space12),
+                ],
+            ],
           );
         },
       ),
       floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => Navigator.of(context).push(
-          MaterialPageRoute(builder: (_) => const EditAlarmScreen()),
-        ),
+        onPressed: () => _openEditor(context, null),
         icon: const Icon(Icons.add),
         label: const Text('New alarm'),
       ),
+    );
+  }
+
+  static int _byTimeOfDay(Alarm a, Alarm b) {
+    final am = a.hour * 60 + a.minute;
+    final bm = b.hour * 60 + b.minute;
+    return am.compareTo(bm);
+  }
+
+  void _openEditor(BuildContext context, int? id) {
+    Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => EditAlarmScreen(alarmId: id)),
+    );
+  }
+
+  Future<void> _deleteWithUndo(
+    BuildContext context,
+    WidgetRef ref,
+    Alarm alarm,
+  ) async {
+    final actions = ref.read(scheduledAlarmActionsProvider);
+    final messenger = ScaffoldMessenger.of(context);
+    final name = alarm.label.trim().isNotEmpty
+        ? alarm.label.trim()
+        : alarm.clockLabel;
+    await actions.remove(alarm);
+    messenger.clearSnackBars();
+    messenger.showSnackBar(
+      SnackBar(
+        content: Text('Deleted $name'),
+        action: SnackBarAction(
+          label: 'Undo',
+          onPressed: () => actions.add(alarm.copyWith(id: null)),
+        ),
+      ),
+    );
+  }
+}
+
+class _DismissibleAlarm extends StatelessWidget {
+  const _DismissibleAlarm({
+    required this.alarm,
+    required this.onTap,
+    required this.onToggle,
+    required this.onDismissed,
+  });
+
+  final Alarm alarm;
+  final VoidCallback onTap;
+  final ValueChanged<bool> onToggle;
+  final VoidCallback onDismissed;
+
+  @override
+  Widget build(BuildContext context) {
+    final t = context.tokens;
+    return Dismissible(
+      key: ValueKey(alarm.id),
+      direction: DismissDirection.endToStart,
+      onDismissed: (_) => onDismissed(),
+      background: Container(
+        alignment: Alignment.centerRight,
+        padding: const EdgeInsets.only(right: AppTokens.space24),
+        decoration: BoxDecoration(
+          color: t.danger.withOpacity(0.16),
+          borderRadius: AppTokens.cornerLg,
+        ),
+        child: Icon(Icons.delete_outline_rounded, color: t.danger),
+      ),
+      child: AlarmTile(alarm: alarm, onTap: onTap, onToggle: onToggle),
     );
   }
 }
@@ -93,24 +156,55 @@ class _EmptyState extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
+    final t = context.tokens;
+    final text = Theme.of(context).textTheme;
+    return Padding(
+      padding: const EdgeInsets.only(top: AppTokens.space56),
+      child: Column(
+        children: [
+          Container(
+            width: 72,
+            height: 72,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              color: t.brandMuted,
+              shape: BoxShape.circle,
+            ),
+            child: Icon(Icons.alarm_add_rounded, size: 34, color: t.brand),
+          ),
+          const Gap(AppTokens.space20),
+          Text('No alarms yet', style: text.titleMedium),
+          const Gap(AppTokens.space8),
+          Text(
+            'Tap “New alarm” to set your first\nwake-up mission.',
+            textAlign: TextAlign.center,
+            style: text.bodyMedium,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ErrorState extends StatelessWidget {
+  const _ErrorState({required this.message});
+
+  final String message;
+
+  @override
+  Widget build(BuildContext context) {
+    final text = Theme.of(context).textTheme;
     return Center(
       child: Padding(
-        padding: const EdgeInsets.all(32),
+        padding: const EdgeInsets.all(AppTokens.space32),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.alarm_add_outlined,
-                size: 48, color: theme.colorScheme.onSurfaceVariant),
-            const SizedBox(height: 16),
-            Text('No alarms yet', style: theme.textTheme.titleMedium),
-            const SizedBox(height: 8),
-            Text(
-              'Tap "New alarm" to set your first wake-up mission.',
-              textAlign: TextAlign.center,
-              style: theme.textTheme.bodyMedium
-                  ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
-            ),
+            Icon(Icons.error_outline_rounded, color: context.tokens.danger),
+            const Gap(AppTokens.space12),
+            Text('Could not load alarms', style: text.titleMedium),
+            const Gap(AppTokens.space4),
+            Text(message, textAlign: TextAlign.center, style: text.bodySmall),
           ],
         ),
       ),
