@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/alarm_scheduler.dart';
 import '../../core/theme/app_tokens.dart';
 import '../../core/ui/gap.dart';
+import '../../core/ui/stagger_in.dart';
 import '../../data/alarm.dart';
 import '../../data/alarm_repository.dart';
 import '../onboarding/permission_onboarding_screen.dart';
@@ -60,12 +61,16 @@ class AlarmListScreen extends ConsumerWidget {
               if (sorted.isEmpty)
                 const _EmptyState()
               else
-                for (final alarm in sorted) ...[
-                  _DismissibleAlarm(
-                    alarm: alarm,
-                    onTap: () => _openEditor(context, alarm.id),
-                    onToggle: (v) => actions.setEnabled(alarm, v),
-                    onDismissed: () => _deleteWithUndo(context, ref, alarm),
+                for (final (i, alarm) in sorted.indexed) ...[
+                  StaggerIn(
+                    key: ValueKey('stagger-${alarm.id}'),
+                    index: i,
+                    child: _DismissibleAlarm(
+                      alarm: alarm,
+                      onTap: () => _openEditor(context, alarm.id),
+                      onToggle: (v) => actions.setEnabled(alarm, v),
+                      onDismissed: () => _deleteWithUndo(context, ref, alarm),
+                    ),
                   ),
                   const Gap(AppTokens.space12),
                 ],
