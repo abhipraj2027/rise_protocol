@@ -14,6 +14,10 @@ jobs:
   build:
     runs-on: ubuntu-latest
 
+    # Needed so the master build can publish the APKs to the "latest" release.
+    permissions:
+      contents: write
+
     steps:
       - name: Check out the repo
         uses: actions/checkout@v4
@@ -99,3 +103,22 @@ jobs:
           name: rise-protocol-release-apk
           path: build/app/outputs/flutter-apk/app-*-release.apk
           retention-days: 14
+
+      # Publishes the APKs to a rolling "latest" prerelease so there's a
+      # stable, no-login, phone-installable link:
+      #   https://github.com/abhipraj2027/rise_protocol/releases/latest
+      - name: Publish APKs to the 'latest' release
+        if: github.ref == 'refs/heads/master'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: latest
+          name: Latest master build
+          prerelease: true
+          body: >
+            Auto-published from the master CI build (${{ github.sha }}).
+            Debug-signed — for sideloading and testing only.
+            app-arm64-v8a-release.apk is the one for modern phones.
+          files: |
+            build/app/outputs/flutter-apk/app-arm64-v8a-release.apk
+            build/app/outputs/flutter-apk/app-armeabi-v7a-release.apk
+            build/app/outputs/flutter-apk/app-release.apk
