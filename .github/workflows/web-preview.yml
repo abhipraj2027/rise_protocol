@@ -1,0 +1,64 @@
+name: Web UI preview
+
+# Builds the Flutter web bundle and publishes it to GitHub Pages so the UI
+# can be viewed from any device without installing anything. The web build
+# stubs the native bits (in-memory alarm store, no-op alarm bridge) — it is
+# a visual preview of the screens, not a working alarm clock.
+#
+# One-time setup: repo Settings → Pages → Build and deployment → Source:
+# "GitHub Actions".
+
+on:
+  push:
+    branches: [master, 'preview/**']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: web-preview
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out the repo
+        uses: actions/checkout@v4
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.24.0'
+          channel: 'stable'
+          cache: true
+
+      - name: Enable web
+        run: flutter config --enable-web
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Build web
+        run: flutter build web --release --base-href /rise_protocol/
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: build/web
+
+  deploy:
+    needs: build
+    # Only publish from master; branch pushes just verify the build compiles.
+    if: github.ref == 'refs/heads/master'
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
