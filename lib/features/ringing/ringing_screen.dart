@@ -1,10 +1,13 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:just_audio/just_audio.dart';
 
 import '../../core/alarm_bridge.dart';
+import '../../core/theme/app_tokens.dart';
+import '../../core/ui/gap.dart';
 import '../../data/alarm.dart';
 import 'missions/math_mission.dart';
 
@@ -16,7 +19,7 @@ import 'missions/math_mission.dart';
 ///
 /// Either way this widget owns: looping the alarm sound, snooze (always
 /// available, capped by maxSnoozes upstream), and gating dismiss behind the
-/// configured mission.
+/// configured mission. It always renders in the fixed-dark ringing theme.
 class RingingScreen extends ConsumerStatefulWidget {
   const RingingScreen({
     super.key,
@@ -38,6 +41,7 @@ class _RingingScreenState extends ConsumerState<RingingScreen> {
   Timer? _clockTimer;
   DateTime _now = DateTime.now();
   bool _missionActive = false;
+  bool _dismissed = false;
 
   @override
   void initState() {
@@ -81,74 +85,150 @@ class _RingingScreenState extends ConsumerState<RingingScreen> {
   }
 
   Future<void> _onMissionComplete() async {
+    if (_dismissed) return;
     await _player.stop();
+    HapticFeedback.mediumImpact();
+    setState(() => _dismissed = true);
+    // Hold the "good morning" moment briefly before tearing the screen down.
+    await Future.delayed(const Duration(milliseconds: 1100));
     await ref.read(alarmBridgeProvider).dismissRinging(widget.alarmId);
     if (mounted) Navigator.of(context).maybePop();
   }
 
   Future<void> _snooze() async {
+    if (_dismissed) return;
     await _player.stop();
-    // TODO(phase 2): read the alarm's configured snoozeMinutes/maxSnoozes
-    // instead of the hardcoded default once this screen has DB access
-    // (the second-engine ringing path launches before the app's normal
-    // provider tree is guaranteed warm — plumb alarm details through the
-    // initial route query string alongside id/label/mission, same as today).
+    // TODO(phase D): read the alarm's configured snoozeMinutes/maxSnoozes
+    // instead of the hardcoded default once this screen has DB access.
     await ref.read(alarmBridgeProvider).snoozeRinging(widget.alarmId, 5);
     if (mounted) Navigator.of(context).maybePop();
   }
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final timeText =
-        '${_now.hour.toString().padLeft(2, '0')}:${_now.minute.toString().padLeft(2, '0')}';
+    final t = context.tokens;
+    final text = Theme.of(context).textTheme;
+    final timeText = '${_two(_now.hour)}:${_two(_now.minute)}';
+    final showMission =
+        _missionActive || widget.missionType == MissionType.none;
 
     return PopScope(
       // Back button must not dismiss the alarm — that would defeat the
       // entire point of the app.
       canPop: false,
       child: Scaffold(
-        backgroundColor: theme.scaffoldBackgroundColor,
-        body: SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
-            child: Column(
-              children: [
-                const SizedBox(height: 12),
-                Text(
-                  timeText,
-                  style: theme.textTheme.displayLarge?.copyWith(
-                    fontWeight: FontWeight.w200,
-                    fontFeatures: const [FontFeature.tabularFigures()],
+        backgroundColor: t.ringingBackground,
+        body: Stack(
+          children: [
+            const Positioned.fill(child: _AmbientGlow()),
+            Positioned.fill(
+              child: SafeArea(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: AppTokens.space24,
+                    vertical: AppTokens.space32,
+                  ),
+                  child: Column(
+                    children: [
+                      const Spacer(flex: 2),
+                      Text(
+                        timeText,
+                        style: text.displayLarge?.copyWith(
+                          color: t.ringingForeground,
+                        ),
+                      ),
+                      if (widget.label.isNotEmpty) ...[
+                        const Gap(AppTokens.space8),
+                        Text(
+                          widget.label,
+                          style: text.titleMedium?.copyWith(
+                            color: t.textSecondary,
+                          ),
+                        ),
+                      ],
+                      const Spacer(flex: 2),
+                      if (!_dismissed)
+                        showMission
+                            ? _MissionArea(
+                                missionType: widget.missionType,
+                                onComplete: _onMissionComplete,
+                              )
+                            : _StartArea(
+                                missionType: widget.missionType,
+                                onDismissNoMission: _onMissionComplete,
+                                onStartMission: () =>
+                                    setState(() => _missionActive = true),
+                              ),
+                      const Spacer(flex: 3),
+                      if (!_dismissed) _SnoozeButton(onTap: _snooze),
+                      const Gap(AppTokens.space8),
+                    ],
                   ),
                 ),
-                if (widget.label.isNotEmpty) ...[
-                  const SizedBox(height: 4),
-                  Text(widget.label, style: theme.textTheme.titleMedium),
-                ],
-                const Spacer(),
-                if (_missionActive || widget.missionType == MissionType.none)
-                  _MissionArea(
-                    missionType: widget.missionType,
-                    onComplete: _onMissionComplete,
-                  )
-                else
-                  _StartArea(
-                    missionType: widget.missionType,
-                    onDismissNoMission: _onMissionComplete,
-                    onStartMission: () => setState(() => _missionActive = true),
-                  ),
-                const Spacer(),
-                TextButton.icon(
-                  onPressed: _snooze,
-                  icon: const Icon(Icons.snooze),
-                  label: const Text('Snooze'),
-                ),
+              ),
+            ),
+            if (_dismissed) const Positioned.fill(child: _GoodMorning()),
+          ],
+        ),
+      ),
+    );
+  }
+
+  static String _two(int n) => n.toString().padLeft(2, '0');
+}
+
+/// A very slow drifting radial glow behind the clock — just enough motion to
+/// read as "alive" without being distracting to someone half awake.
+class _AmbientGlow extends StatefulWidget {
+  const _AmbientGlow();
+
+  @override
+  State<_AmbientGlow> createState() => _AmbientGlowState();
+}
+
+class _AmbientGlowState extends State<_AmbientGlow>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: AppTokens.motionAmbient,
+    )..repeat(reverse: true);
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final t = context.tokens;
+    return AnimatedBuilder(
+      animation: _controller,
+      builder: (context, _) {
+        final a = Curves.easeInOut.transform(_controller.value);
+        return DecoratedBox(
+          decoration: BoxDecoration(
+            gradient: RadialGradient(
+              center: Alignment.lerp(
+                const Alignment(-0.7, -0.9),
+                const Alignment(0.7, 0.5),
+                a,
+              )!,
+              radius: 1.4,
+              colors: [
+                Color.lerp(t.brand, t.ringingBackground, 0.74)!,
+                t.ringingBackground,
               ],
             ),
           ),
-        ),
-      ),
+        );
+      },
     );
   }
 }
@@ -170,9 +250,8 @@ class _StartArea extends StatelessWidget {
     return FilledButton(
       onPressed: isNone ? onDismissNoMission : onStartMission,
       style: FilledButton.styleFrom(
-        minimumSize: const Size(240, 64),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
-        textStyle: const TextStyle(fontSize: 20, fontWeight: FontWeight.w600),
+        minimumSize: const Size(260, 64),
+        textStyle: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
       ),
       child: Text(isNone ? 'Dismiss' : 'Start mission'),
     );
@@ -195,12 +274,62 @@ class _MissionArea extends StatelessWidget {
       case MissionType.shake:
       case MissionType.photo:
       case MissionType.barcode:
-        // Falls back to a plain dismiss until these ship in Phase 2 —
-        // never leave the user stuck against an alarm with no way out.
+        // Falls back to a plain dismiss until these ship in Phase C — never
+        // leave the user stuck against an alarm with no way out.
         return FilledButton(
           onPressed: onComplete,
-          child: const Text('Dismiss (mission not yet implemented)'),
+          child: const Text('Dismiss'),
         );
     }
+  }
+}
+
+class _SnoozeButton extends StatelessWidget {
+  const _SnoozeButton({required this.onTap});
+
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final t = context.tokens;
+    return TextButton.icon(
+      onPressed: onTap,
+      icon: Icon(Icons.snooze_rounded, size: 18, color: t.textFaint),
+      label: Text('Snooze', style: TextStyle(color: t.textFaint)),
+    );
+  }
+}
+
+/// The full-bleed positive beat shown for ~1s after a mission is cleared,
+/// before the ringing screen tears itself down.
+class _GoodMorning extends StatelessWidget {
+  const _GoodMorning();
+
+  @override
+  Widget build(BuildContext context) {
+    final t = context.tokens;
+    final text = Theme.of(context).textTheme;
+    return TweenAnimationBuilder<double>(
+      tween: Tween<double>(begin: 0.0, end: 1.0),
+      duration: AppTokens.motionSlow,
+      curve: Curves.easeOut,
+      builder: (context, v, child) => Opacity(opacity: v, child: child),
+      child: ColoredBox(
+        color: t.brand,
+        child: Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.wb_sunny_rounded, size: 64, color: t.onBrand),
+              const Gap(AppTokens.space16),
+              Text(
+                'Good morning',
+                style: text.displaySmall?.copyWith(color: t.onBrand),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 }
