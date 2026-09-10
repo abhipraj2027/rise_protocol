@@ -7,6 +7,7 @@ import 'package:just_audio/just_audio.dart';
 
 import '../../core/alarm_bridge.dart';
 import '../../core/theme/app_tokens.dart';
+import '../../core/ui/clock_display.dart';
 import '../../core/ui/gap.dart';
 import '../../core/ui/primary_button.dart';
 import '../../data/alarm.dart';
@@ -109,7 +110,6 @@ class _RingingScreenState extends ConsumerState<RingingScreen> {
   Widget build(BuildContext context) {
     final t = context.tokens;
     final text = Theme.of(context).textTheme;
-    final timeText = '${_two(_now.hour)}:${_two(_now.minute)}';
     final showMission =
         _missionActive || widget.missionType == MissionType.none;
 
@@ -132,12 +132,7 @@ class _RingingScreenState extends ConsumerState<RingingScreen> {
                   child: Column(
                     children: [
                       const Spacer(flex: 2),
-                      Text(
-                        timeText,
-                        style: text.displayLarge?.copyWith(
-                          color: t.ringingForeground,
-                        ),
-                      ),
+                      ClockDisplay(time: _now),
                       if (widget.label.isNotEmpty) ...[
                         const Gap(AppTokens.space8),
                         Text(
@@ -175,7 +170,6 @@ class _RingingScreenState extends ConsumerState<RingingScreen> {
     );
   }
 
-  static String _two(int n) => n.toString().padLeft(2, '0');
 }
 
 /// A very slow drifting radial glow behind the clock — just enough motion to
