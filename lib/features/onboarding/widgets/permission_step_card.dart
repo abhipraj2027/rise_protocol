@@ -1,7 +1,12 @@
 import 'package:flutter/material.dart';
 
+import '../../../core/theme/app_tokens.dart';
+import '../../../core/ui/app_card.dart';
+import '../../../core/ui/gap.dart';
 import '../permission_step.dart';
 
+/// One row in the onboarding checklist: a status dot, the ask, why it
+/// matters, and a Grant button until it's satisfied.
 class PermissionStepCard extends StatelessWidget {
   const PermissionStepCard({
     super.key,
@@ -16,32 +21,23 @@ class PermissionStepCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
+    final t = context.tokens;
+    final text = Theme.of(context).textTheme;
     final isGranted = granted == true;
 
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: theme.colorScheme.surfaceContainerHigh,
-        borderRadius: BorderRadius.circular(16),
-        border: isGranted
-            ? Border.all(color: theme.colorScheme.primary.withOpacity(0.4))
-            : null,
-      ),
+    final (IconData icon, Color iconColor) = isGranted
+        ? (Icons.check_circle_rounded, t.success)
+        : step.critical
+            ? (Icons.error_outline_rounded, t.danger)
+            : (Icons.circle_outlined, t.textFaint);
+
+    return AppCard(
+      selected: isGranted,
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(
-            isGranted
-                ? Icons.check_circle
-                : (step.critical ? Icons.error_outline : Icons.info_outline),
-            color: isGranted
-                ? theme.colorScheme.primary
-                : (step.critical
-                    ? theme.colorScheme.error
-                    : theme.colorScheme.onSurfaceVariant),
-          ),
-          const SizedBox(width: 12),
+          Icon(icon, color: iconColor, size: 22),
+          const Gap.w(AppTokens.space12),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -49,29 +45,28 @@ class PermissionStepCard extends StatelessWidget {
                 Row(
                   children: [
                     Expanded(
-                      child: Text(step.title, style: theme.textTheme.titleSmall),
+                      child: Text(
+                        step.title,
+                        style: text.titleSmall?.copyWith(color: t.textPrimary),
+                      ),
                     ),
                     if (!step.critical && !isGranted)
-                      Text(
-                        'RECOMMENDED',
-                        style: theme.textTheme.labelSmall?.copyWith(
-                          color: theme.colorScheme.onSurfaceVariant,
-                          letterSpacing: 0.6,
-                        ),
-                      ),
+                      Text('OPTIONAL', style: text.labelSmall),
                   ],
                 ),
-                const SizedBox(height: 4),
-                Text(
-                  step.description,
-                  style: theme.textTheme.bodySmall
-                      ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
-                ),
+                const Gap(AppTokens.space4),
+                Text(step.description, style: text.bodySmall),
                 if (!isGranted) ...[
-                  const SizedBox(height: 10),
+                  const Gap(AppTokens.space12),
                   OutlinedButton(
                     onPressed: onResolve,
-                    child: const Text('Fix this'),
+                    style: OutlinedButton.styleFrom(
+                      minimumSize: const Size(0, 40),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: AppTokens.space16,
+                      ),
+                    ),
+                    child: const Text('Grant'),
                   ),
                 ],
               ],

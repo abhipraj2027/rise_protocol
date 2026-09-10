@@ -3,6 +3,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/alarm_bridge.dart';
 import '../../core/app_prefs.dart';
+import '../../core/theme/app_tokens.dart';
+import '../../core/ui/gap.dart';
+import '../../core/ui/primary_button.dart';
 import 'permission_step.dart';
 import 'widgets/permission_step_card.dart';
 
@@ -13,9 +16,9 @@ import 'widgets/permission_step_card.dart';
 class PermissionOnboardingScreen extends ConsumerStatefulWidget {
   const PermissionOnboardingScreen({super.key, this.isReview = false});
 
-  /// True when opened from the alarm list (already onboarded) rather than
-  /// as the first-launch flow — changes the button label and skips writing
-  /// the onboarding-complete flag again.
+  /// True when opened from the alarm list (already onboarded) rather than as
+  /// the first-launch flow — changes the button label and skips writing the
+  /// onboarding-complete flag again.
   final bool isReview;
 
   @override
@@ -24,7 +27,8 @@ class PermissionOnboardingScreen extends ConsumerStatefulWidget {
 }
 
 class _PermissionOnboardingScreenState
-    extends ConsumerState<PermissionOnboardingScreen> with WidgetsBindingObserver {
+    extends ConsumerState<PermissionOnboardingScreen>
+    with WidgetsBindingObserver {
   Map<PermissionStepKind, bool>? _status;
 
   @override
@@ -43,8 +47,7 @@ class _PermissionOnboardingScreenState
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     // Catches the user backing out of the system settings screen we sent
-    // them to (e.g. "Alarms & reminders" or the battery optimization
-    // dialog) and re-checks so the checklist reflects reality immediately.
+    // them to and re-checks so the checklist reflects reality immediately.
     if (state == AppLifecycleState.resumed) {
       _refreshStatus();
     }
@@ -69,11 +72,11 @@ class _PermissionOnboardingScreenState
         .every((s) => status[s.kind] == true);
   }
 
+  int get _grantedCount =>
+      _status?.values.where((v) => v).length ?? 0;
+
   Future<void> _resolve(PermissionStep step) async {
     await step.resolve(ref.read(alarmBridgeProvider));
-    // Some flows (e.g. the notification permission dialog) resolve
-    // synchronously without leaving the app, so re-check right away too —
-    // didChangeAppLifecycleState covers the ones that do leave the app.
     await _refreshStatus();
   }
 
@@ -86,40 +89,75 @@ class _PermissionOnboardingScreenState
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
+    final t = context.tokens;
+    final text = Theme.of(context).textTheme;
     final status = _status;
+    final total = PermissionStep.all.length;
 
     return Scaffold(
       appBar: widget.isReview ? AppBar(title: const Text('Permissions')) : null,
       body: SafeArea(
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(20, 24, 20, 20),
+          padding: const EdgeInsets.fromLTRB(
+            AppTokens.space20,
+            AppTokens.space24,
+            AppTokens.space20,
+            AppTokens.space20,
+          ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               if (!widget.isReview) ...[
-                Icon(Icons.shield_outlined, size: 40, color: theme.colorScheme.primary),
-                const SizedBox(height: 16),
-                Text(
-                  'A few permissions first',
-                  style: theme.textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w600),
+                Container(
+                  width: 56,
+                  height: 56,
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                    color: t.brandMuted,
+                    shape: BoxShape.circle,
+                    boxShadow: t.glow,
+                  ),
+                  child: Icon(Icons.shield_outlined, color: t.brand, size: 28),
                 ),
-                const SizedBox(height: 8),
+                const Gap(AppTokens.space20),
                 Text(
-                  'Android locks down background apps by default. These settings '
-                  'are what let Rise Protocol actually wake you up — skip them and '
-                  'alarms can silently fail to ring.',
-                  style: theme.textTheme.bodyMedium
-                      ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+                  'Let’s make sure it can wake you',
+                  style: text.headlineSmall?.copyWith(color: t.textPrimary),
                 ),
-                const SizedBox(height: 24),
+                const Gap(AppTokens.space8),
+                Text(
+                  'Android muzzles background apps by default. Three settings '
+                  'are what let Rise Protocol ring through a locked, sleeping '
+                  'phone — without them an alarm can silently no-show.',
+                  style: text.bodyMedium,
+                ),
+                const Gap(AppTokens.space20),
+                Text(
+                  status == null
+                      ? 'Checking…'
+                      : '$_grantedCount of $total ready',
+                  style: text.labelSmall?.copyWith(
+                    color: _allCriticalGranted ? t.success : t.textFaint,
+                  ),
+                ),
+                const Gap(AppTokens.space16),
               ],
               Expanded(
                 child: status == null
-                    ? const Center(child: CircularProgressIndicator())
+                    ? Center(
+                        child: SizedBox(
+                          width: 22,
+                          height: 22,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: t.textFaint,
+                          ),
+                        ),
+                      )
                     : ListView.separated(
-                        itemCount: PermissionStep.all.length,
-                        separatorBuilder: (_, __) => const SizedBox(height: 12),
+                        itemCount: total,
+                        separatorBuilder: (_, __) =>
+                            const Gap(AppTokens.space12),
                         itemBuilder: (context, i) {
                           final step = PermissionStep.all[i];
                           return PermissionStepCard(
@@ -130,18 +168,20 @@ class _PermissionOnboardingScreenState
                         },
                       ),
               ),
-              const SizedBox(height: 16),
-              FilledButton(
-                onPressed: (status != null && (_allCriticalGranted || widget.isReview))
-                    ? _finish
-                    : null,
-                style: FilledButton.styleFrom(padding: const EdgeInsets.all(16)),
-                child: Text(widget.isReview
+              const Gap(AppTokens.space16),
+              PrimaryButton(
+                label: widget.isReview
                     ? 'Done'
-                    : (_allCriticalGranted ? 'Continue' : 'Grant the required permissions above')),
+                    : _allCriticalGranted
+                        ? 'Continue'
+                        : 'Grant the required ones above',
+                onPressed:
+                    (status != null && (_allCriticalGranted || widget.isReview))
+                        ? _finish
+                        : null,
               ),
               if (!widget.isReview && status != null && !_allCriticalGranted) ...[
-                const SizedBox(height: 8),
+                const Gap(AppTokens.space8),
                 Center(
                   child: TextButton(
                     onPressed: _finish,

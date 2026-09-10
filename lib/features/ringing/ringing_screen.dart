@@ -56,16 +56,15 @@ class _RingingScreenState extends ConsumerState<RingingScreen> {
 
   Future<void> _startAudio() async {
     try {
-      // Bundle your own alarm tone at assets/sounds/default_alarm.mp3 and
-      // register it in pubspec.yaml's flutter: assets: list.
-      await _player.setAsset('assets/sounds/default_alarm.mp3');
+      // default_alarm.wav is a synthesised 2s loop (see tools/gen_alarm.py).
+      // Swap in a licensed tone by replacing that file — same path.
+      await _player.setAsset('assets/sounds/default_alarm.wav');
       await _player.setLoopMode(LoopMode.one);
       await _player.setVolume(0.15);
       await _player.play();
       unawaited(_ramp());
     } catch (_) {
-      // Missing asset in this scaffold is expected until you drop in a
-      // sound file — the mission flow still works without audio.
+      // If audio fails for any reason, the mission flow still works silently.
     }
   }
 
