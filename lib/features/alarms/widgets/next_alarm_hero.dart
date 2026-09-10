@@ -49,20 +49,15 @@ class _NextAlarmHeroState extends State<NextAlarmHero> {
       width: double.infinity,
       padding: const EdgeInsets.fromLTRB(
         AppTokens.space20,
-        AppTokens.space24,
         AppTokens.space20,
-        AppTokens.space24,
+        AppTokens.space20,
+        AppTokens.space20,
       ),
       decoration: BoxDecoration(
+        color: t.surface1,
         borderRadius: AppTokens.cornerXl,
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: hasNext
-              ? [t.brand, Color.lerp(t.brand, Colors.black, 0.28)!]
-              : [t.surface1, t.surface1],
-        ),
-        border: hasNext ? null : Border.all(color: t.hairline),
+        border: Border.all(color: t.hairline),
+        boxShadow: hasNext ? [...t.shadowCard, ...t.glow] : t.shadowCard,
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -70,16 +65,15 @@ class _NextAlarmHeroState extends State<NextAlarmHero> {
           Row(
             children: [
               Icon(
-                hasNext ? Icons.notifications_active_rounded : Icons.bedtime_outlined,
-                size: 18,
-                color: hasNext ? t.onBrand : t.textSecondary,
+                hasNext ? Icons.bolt_rounded : Icons.bedtime_outlined,
+                size: 16,
+                color: hasNext ? t.brand : t.textFaint,
               ),
               const SizedBox(width: AppTokens.space8),
               Text(
                 hasNext ? 'NEXT ALARM' : 'NO ALARMS SET',
                 style: text.labelSmall?.copyWith(
-                  color: hasNext ? t.onBrand.withOpacity(0.8) : t.textFaint,
-                  letterSpacing: 1.2,
+                  color: hasNext ? t.brand : t.textFaint,
                 ),
               ),
             ],
@@ -88,13 +82,13 @@ class _NextAlarmHeroState extends State<NextAlarmHero> {
           if (next != null && fireAt != null) ...[
             Text(
               humanizeUntil(fireAt.difference(now)),
-              style: text.displaySmall?.copyWith(color: t.onBrand),
+              style: text.displaySmall?.copyWith(color: t.textPrimary),
             ),
             const SizedBox(height: AppTokens.space4),
             Text(
               '${dayAndTime(fireAt, now: now)}'
               '${next.label.isNotEmpty ? '  ·  ${next.label}' : ''}',
-              style: text.bodyMedium?.copyWith(color: t.onBrand.withOpacity(0.85)),
+              style: text.bodyMedium?.copyWith(color: t.textSecondary),
             ),
           ] else
             Text(

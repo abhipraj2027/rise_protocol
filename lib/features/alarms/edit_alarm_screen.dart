@@ -5,6 +5,8 @@ import '../../core/alarm_scheduler.dart';
 import '../../core/theme/app_tokens.dart';
 import '../../core/ui/app_card.dart';
 import '../../core/ui/gap.dart';
+import '../../core/ui/glass_surface.dart';
+import '../../core/ui/primary_button.dart';
 import '../../core/ui/section_header.dart';
 import '../../core/ui/weekday_selector.dart';
 import '../../data/alarm.dart';
@@ -489,18 +491,19 @@ class _SaveBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final t = context.tokens;
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        color: t.surface0,
-        border: Border(top: BorderSide(color: t.hairline)),
-      ),
-      child: SafeArea(
-        top: false,
-        child: Padding(
-          padding: const EdgeInsets.all(AppTokens.space16),
-          child: FilledButton(
-            onPressed: () => onSave(),
-            child: Text(label),
+    return GlassSurface(
+      borderRadius: BorderRadius.zero,
+      bordered: false,
+      opacity: 0.6,
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          border: Border(top: BorderSide(color: t.hairline)),
+        ),
+        child: SafeArea(
+          top: false,
+          child: Padding(
+            padding: const EdgeInsets.all(AppTokens.space16),
+            child: PrimaryButton(label: label, onPressed: () => onSave()),
           ),
         ),
       ),

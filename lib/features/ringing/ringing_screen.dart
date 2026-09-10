@@ -8,6 +8,7 @@ import 'package:just_audio/just_audio.dart';
 import '../../core/alarm_bridge.dart';
 import '../../core/theme/app_tokens.dart';
 import '../../core/ui/gap.dart';
+import '../../core/ui/primary_button.dart';
 import '../../data/alarm.dart';
 import 'missions/math_mission.dart';
 
@@ -247,13 +248,9 @@ class _StartArea extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isNone = missionType == MissionType.none;
-    return FilledButton(
+    return PrimaryButton(
+      label: isNone ? 'Dismiss' : 'Start mission',
       onPressed: isNone ? onDismissNoMission : onStartMission,
-      style: FilledButton.styleFrom(
-        minimumSize: const Size(260, 64),
-        textStyle: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
-      ),
-      child: Text(isNone ? 'Dismiss' : 'Start mission'),
     );
   }
 }
@@ -276,10 +273,7 @@ class _MissionArea extends StatelessWidget {
       case MissionType.barcode:
         // Falls back to a plain dismiss until these ship in Phase C — never
         // leave the user stuck against an alarm with no way out.
-        return FilledButton(
-          onPressed: onComplete,
-          child: const Text('Dismiss'),
-        );
+        return PrimaryButton(label: 'Dismiss', onPressed: onComplete);
     }
   }
 }

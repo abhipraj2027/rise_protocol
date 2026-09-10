@@ -4,6 +4,8 @@ import '../../core/theme/app_tokens.dart';
 import '../../core/ui/app_card.dart';
 import '../../core/ui/big_switch.dart';
 import '../../core/ui/gap.dart';
+import '../../core/ui/glass_surface.dart';
+import '../../core/ui/primary_button.dart';
 import '../../core/ui/section_header.dart';
 import '../../core/ui/weekday_selector.dart';
 
@@ -120,13 +122,39 @@ class _GalleryScreenState extends State<GalleryScreen> {
 
           const SectionHeader('Buttons'),
           const Gap(AppTokens.space12),
-          FilledButton(onPressed: () {}, child: const Text('Filled button')),
+          PrimaryButton(label: 'Primary (amber glow)', onPressed: () {}),
           const Gap(AppTokens.space8),
-          const FilledButton(onPressed: null, child: Text('Filled (disabled)')),
+          const PrimaryButton(label: 'Primary (disabled)', onPressed: null),
+          const Gap(AppTokens.space8),
+          FilledButton(onPressed: () {}, child: const Text('Filled button')),
           const Gap(AppTokens.space8),
           OutlinedButton(onPressed: () {}, child: const Text('Outlined button')),
           const Gap(AppTokens.space8),
           TextButton(onPressed: () {}, child: const Text('Text button')),
+          const Gap(AppTokens.space32),
+
+          const SectionHeader('GlassSurface', subtitle: 'blurs whatever is behind it'),
+          const Gap(AppTokens.space12),
+          Stack(
+            children: [
+              Row(
+                children: [
+                  Expanded(child: Container(height: 96, color: t.brand)),
+                  Expanded(child: Container(height: 96, color: t.missionAccent)),
+                ],
+              ),
+              Positioned.fill(
+                child: Padding(
+                  padding: const EdgeInsets.all(AppTokens.space12),
+                  child: GlassSurface(
+                    child: Center(
+                      child: Text('Frosted panel', style: text.titleSmall),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
           const Gap(AppTokens.space32),
 
           const SectionHeader('Inputs'),
