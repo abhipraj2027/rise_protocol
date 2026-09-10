@@ -1,5 +1,9 @@
 package com.riseprotocol.app
 
+import android.content.BroadcastReceiver
+import android.content.Context
+import android.content.Intent
+import android.content.IntentFilter
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
@@ -23,13 +27,29 @@ class AlarmRingingActivity : FlutterActivity() {
 
     private var alarmId: Int = -1
 
+    /** Closes this screen when the alarm is dismissed/snoozed from the
+     *  notification (i.e. without going through the Flutter UI). */
+    private val finishReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context?, intent: Intent?) {
+            if (!isFinishing) finish()
+        }
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
-        // Must happen before super.onCreate/setContentView so the window
-        // is configured before Flutter's SurfaceView attaches.
+        // Must happen before super.onCreate/setContentView so the window is
+        // configured before Flutter's SurfaceView attaches.
         showOverLockScreen()
         super.onCreate(savedInstanceState)
 
         alarmId = intent.getIntExtra(AlarmReceiver.EXTRA_ID, -1)
+
+        val filter = IntentFilter(AlarmRingService.ACTION_FINISH_RINGING_UI)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            registerReceiver(finishReceiver, filter, Context.RECEIVER_NOT_EXPORTED)
+        } else {
+            @Suppress("UnspecifiedRegisterReceiverFlag")
+            registerReceiver(finishReceiver, filter)
+        }
     }
 
     override fun getInitialRoute(): String {
@@ -49,7 +69,7 @@ class AlarmRingingActivity : FlutterActivity() {
         super.configureFlutterEngine(flutterEngine)
         // Ringing screen calls back through the same channel name/methods as
         // MainActivity (dismissRinging/snoozeRinging) so RingingScreen's Dart
-        // code doesn't need to know which native Activity it's hosted in.
+        // code doesn't need to know which native Activity is hosting it.
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, AlarmMethodChannel.NAME)
             .setMethodCallHandler { call, result ->
                 AlarmMethodChannel.handle(this, call, result, onHandledTerminal = { finish() })
@@ -72,6 +92,10 @@ class AlarmRingingActivity : FlutterActivity() {
     }
 
     override fun onDestroy() {
+        try {
+            unregisterReceiver(finishReceiver)
+        } catch (_: Exception) {
+        }
         AlarmRingService.stop(this)
         super.onDestroy()
     }

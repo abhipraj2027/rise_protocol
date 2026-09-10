@@ -3,7 +3,6 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:just_audio/just_audio.dart';
 
 import '../../core/alarm_bridge.dart';
 import '../../core/theme/app_tokens.dart';
@@ -19,9 +18,10 @@ import 'missions/math_mission.dart';
 ///     AlarmRingingActivity.kt starts when the alarm actually fires — that
 ///     path is what has to survive a killed app + locked screen.
 ///
-/// Either way this widget owns: looping the alarm sound, snooze (always
-/// available, capped by maxSnoozes upstream), and gating dismiss behind the
-/// configured mission. It always renders in the fixed-dark ringing theme.
+/// Audio + vibration are owned by the native AlarmRingService (so the alarm
+/// rings even if this screen never launches). This widget owns the visuals,
+/// the mission gate, and the snooze / dismiss calls back through the
+/// MethodChannel. It always renders in the fixed-dark ringing theme.
 class RingingScreen extends ConsumerStatefulWidget {
   const RingingScreen({
     super.key,
@@ -39,7 +39,6 @@ class RingingScreen extends ConsumerStatefulWidget {
 }
 
 class _RingingScreenState extends ConsumerState<RingingScreen> {
-  final _player = AudioPlayer();
   Timer? _clockTimer;
   DateTime _now = DateTime.now();
   bool _missionActive = false;
@@ -48,46 +47,19 @@ class _RingingScreenState extends ConsumerState<RingingScreen> {
   @override
   void initState() {
     super.initState();
-    _startAudio();
     _clockTimer = Timer.periodic(const Duration(seconds: 1), (_) {
       if (mounted) setState(() => _now = DateTime.now());
     });
   }
 
-  Future<void> _startAudio() async {
-    try {
-      // default_alarm.wav is a synthesised 2s loop (see tools/gen_alarm.py).
-      // Swap in a licensed tone by replacing that file — same path.
-      await _player.setAsset('assets/sounds/default_alarm.wav');
-      await _player.setLoopMode(LoopMode.one);
-      await _player.setVolume(0.15);
-      await _player.play();
-      unawaited(_ramp());
-    } catch (_) {
-      // If audio fails for any reason, the mission flow still works silently.
-    }
-  }
-
-  /// Gradual volume ramp so the alarm doesn't detonate at full volume the
-  /// instant it fires — mirrors Alarmy's "gentle-then-insistent" escalation.
-  Future<void> _ramp() async {
-    for (double v = 0.15; v <= 1.0; v += 0.05) {
-      await Future.delayed(const Duration(seconds: 3));
-      if (!mounted || !_player.playing) return;
-      await _player.setVolume(v.clamp(0.0, 1.0));
-    }
-  }
-
   @override
   void dispose() {
     _clockTimer?.cancel();
-    _player.dispose();
     super.dispose();
   }
 
   Future<void> _onMissionComplete() async {
     if (_dismissed) return;
-    await _player.stop();
     HapticFeedback.mediumImpact();
     setState(() => _dismissed = true);
     // Hold the "good morning" moment briefly before tearing the screen down.
@@ -99,7 +71,6 @@ class _RingingScreenState extends ConsumerState<RingingScreen> {
   Future<void> _snooze() async {
     if (_dismissed) return;
     HapticFeedback.selectionClick();
-    await _player.stop();
     // TODO(phase D): read the alarm's configured snoozeMinutes/maxSnoozes
     // instead of the hardcoded default once this screen has DB access.
     await ref.read(alarmBridgeProvider).snoozeRinging(widget.alarmId, 5);
