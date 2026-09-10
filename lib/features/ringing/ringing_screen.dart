@@ -99,6 +99,7 @@ class _RingingScreenState extends ConsumerState<RingingScreen> {
 
   Future<void> _snooze() async {
     if (_dismissed) return;
+    HapticFeedback.selectionClick();
     await _player.stop();
     // TODO(phase D): read the alarm's configured snoozeMinutes/maxSnoozes
     // instead of the hardcoded default once this screen has DB access.

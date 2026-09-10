@@ -8,6 +8,7 @@ import '../../core/ui/gap.dart';
 import '../../core/ui/glass_surface.dart';
 import '../../core/ui/primary_button.dart';
 import '../../core/ui/section_header.dart';
+import '../../core/ui/skeleton.dart';
 import '../../core/ui/weekday_selector.dart';
 
 /// A living catalogue of the shared UI primitives, in their common states.
@@ -167,6 +168,21 @@ class _GalleryScreenState extends State<GalleryScreen> {
                 ),
               ),
             ],
+          ),
+          const Gap(AppTokens.space32),
+
+          const SectionHeader('Skeleton', subtitle: 'shimmer while content loads'),
+          const Gap(AppTokens.space12),
+          const AppCard(
+            child: Column(
+              children: [
+                SkeletonBox(height: 20, width: 160),
+                SizedBox(height: AppTokens.space8),
+                SkeletonBox(height: 14),
+                SizedBox(height: AppTokens.space8),
+                SkeletonBox(height: 14, width: 220),
+              ],
+            ),
           ),
           const Gap(AppTokens.space32),
 

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart' show HapticFeedback;
 
 import '../theme/app_tokens.dart';
 
@@ -20,10 +21,16 @@ class PrimaryButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final t = context.tokens;
+    final handler = onPressed == null
+        ? null
+        : () {
+            HapticFeedback.selectionClick();
+            onPressed!();
+          };
     final button = icon == null
-        ? FilledButton(onPressed: onPressed, child: Text(label))
+        ? FilledButton(onPressed: handler, child: Text(label))
         : FilledButton.icon(
-            onPressed: onPressed,
+            onPressed: handler,
             icon: Icon(icon),
             label: Text(label),
           );
