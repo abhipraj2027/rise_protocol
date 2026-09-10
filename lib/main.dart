@@ -89,6 +89,10 @@ class _HomeBootstrap extends ConsumerStatefulWidget {
 class _HomeBootstrapState extends ConsumerState<_HomeBootstrap> {
   late final Future<bool> _onboardingComplete;
 
+  /// Set when the onboarding screen (rendered here as the home body, not a
+  /// route) reports it's done, so we swap to the list without any nav pop.
+  bool _onboardedNow = false;
+
   @override
   void initState() {
     super.initState();
@@ -104,9 +108,12 @@ class _HomeBootstrapState extends ConsumerState<_HomeBootstrap> {
         if (!snapshot.hasData) {
           return const Scaffold(body: Center(child: CircularProgressIndicator()));
         }
-        return snapshot.data!
+        final done = snapshot.data! || _onboardedNow;
+        return done
             ? const AlarmListScreen()
-            : const PermissionOnboardingScreen();
+            : PermissionOnboardingScreen(
+                onCompleted: () => setState(() => _onboardedNow = true),
+              );
       },
     );
   }

@@ -14,12 +14,21 @@ import 'widgets/permission_step_card.dart';
 /// revoked by the user or the OS after the fact, so this isn't a one-time
 /// gate, it's a page the user can always come back to and check.
 class PermissionOnboardingScreen extends ConsumerStatefulWidget {
-  const PermissionOnboardingScreen({super.key, this.isReview = false});
+  const PermissionOnboardingScreen({
+    super.key,
+    this.isReview = false,
+    this.onCompleted,
+  });
 
   /// True when opened from the alarm list (already onboarded) rather than as
   /// the first-launch flow — changes the button label and skips writing the
   /// onboarding-complete flag again.
   final bool isReview;
+
+  /// Set on the first-launch flow, where this screen is the home body rather
+  /// than a pushed route: called instead of `Navigator.pop()` so the host
+  /// can swap to the alarm list. Null in review mode (pop is correct there).
+  final VoidCallback? onCompleted;
 
   @override
   ConsumerState<PermissionOnboardingScreen> createState() =>
@@ -84,7 +93,13 @@ class _PermissionOnboardingScreenState
     if (!widget.isReview) {
       await ref.read(appPrefsProvider).setOnboardingComplete(true);
     }
-    if (mounted) Navigator.of(context).pop();
+    if (!mounted) return;
+    final onCompleted = widget.onCompleted;
+    if (onCompleted != null) {
+      onCompleted();
+    } else {
+      Navigator.of(context).pop();
+    }
   }
 
   @override
