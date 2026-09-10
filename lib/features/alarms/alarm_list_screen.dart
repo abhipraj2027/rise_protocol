@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart' show kDebugMode;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -19,6 +20,12 @@ class AlarmListScreen extends ConsumerWidget {
       appBar: AppBar(
         title: const Text('Rise Protocol'),
         actions: [
+          if (kDebugMode)
+            IconButton(
+              tooltip: 'Component gallery',
+              icon: const Icon(Icons.palette_outlined),
+              onPressed: () => Navigator.of(context).pushNamed('/gallery'),
+            ),
           IconButton(
             tooltip: 'Permissions',
             icon: const Icon(Icons.shield_outlined),
