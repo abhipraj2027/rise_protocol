@@ -1,6 +1,7 @@
 package com.riseprotocol.app
 
 import android.app.AlarmManager
+import android.app.NotificationManager
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
@@ -76,6 +77,38 @@ object AlarmMethodChannel {
             "isIgnoringBatteryOptimizations" -> {
                 val powerManager = context.getSystemService(Context.POWER_SERVICE) as PowerManager
                 result.success(powerManager.isIgnoringBatteryOptimizations(context.packageName))
+            }
+
+            "canUseFullScreenIntent" -> {
+                val ok = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+                    val nm = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+                    nm.canUseFullScreenIntent()
+                } else {
+                    true
+                }
+                result.success(ok)
+            }
+
+            "openFullScreenIntentSettings" -> {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+                    val primary = Intent(Settings.ACTION_MANAGE_APP_USE_FULL_SCREEN_INTENT).apply {
+                        data = Uri.parse("package:${context.packageName}")
+                        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                    }
+                    try {
+                        context.startActivity(primary)
+                    } catch (_: Exception) {
+                        val fallback = Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS).apply {
+                            putExtra(Settings.EXTRA_APP_PACKAGE, context.packageName)
+                            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                        }
+                        try {
+                            context.startActivity(fallback)
+                        } catch (_: Exception) {
+                        }
+                    }
+                }
+                result.success(null)
             }
 
             "stopRingingService" -> {

@@ -96,5 +96,8 @@
         <intent>
             <action android:name="android.settings.REQUEST_SCHEDULE_EXACT_ALARM" />
         </intent>
+        <intent>
+            <action android:name="android.settings.MANAGE_APP_USE_FULL_SCREEN_INTENT" />
+        </intent>
     </queries>
 </manifest>

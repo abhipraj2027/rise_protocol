@@ -35,6 +35,14 @@ abstract interface class AlarmBridge {
   /// True if the app is already exempt from battery optimization.
   Future<bool> isIgnoringBatteryOptimizations();
 
+  /// True if the app may post full-screen-intent notifications. Always true
+  /// below Android 14; on 14+ it's a user-revocable permission and, without
+  /// it, a firing alarm shows only a heads-up notification.
+  Future<bool> canUseFullScreenIntent();
+
+  /// Opens the OS "Full-screen notifications" settings page for this app.
+  Future<void> openFullScreenIntentSettings();
+
   /// Stops the ringing foreground service / audio if the user force-closed
   /// the app instead of dismissing normally.
   Future<void> stopAnyRingingService();
@@ -97,6 +105,17 @@ class PlatformAlarmBridge implements AlarmBridge {
   }
 
   @override
+  Future<bool> canUseFullScreenIntent() async {
+    final result = await _channel.invokeMethod<bool>('canUseFullScreenIntent');
+    return result ?? true;
+  }
+
+  @override
+  Future<void> openFullScreenIntentSettings() async {
+    await _channel.invokeMethod('openFullScreenIntentSettings');
+  }
+
+  @override
   Future<void> stopAnyRingingService() async {
     await _channel.invokeMethod('stopRingingService');
   }
@@ -142,6 +161,12 @@ class FakeAlarmBridge implements AlarmBridge {
 
   @override
   Future<bool> isIgnoringBatteryOptimizations() async => true;
+
+  @override
+  Future<bool> canUseFullScreenIntent() async => true;
+
+  @override
+  Future<void> openFullScreenIntentSettings() async {}
 
   @override
   Future<void> stopAnyRingingService() async {}

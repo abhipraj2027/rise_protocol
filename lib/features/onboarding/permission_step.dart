@@ -3,7 +3,12 @@ import 'package:permission_handler/permission_handler.dart';
 
 import '../../core/alarm_bridge.dart';
 
-enum PermissionStepKind { exactAlarm, notifications, batteryOptimization }
+enum PermissionStepKind {
+  exactAlarm,
+  notifications,
+  fullScreenIntent,
+  batteryOptimization,
+}
 
 /// One row in the onboarding checklist. `critical` steps block "Continue" —
 /// without them the app plausibly can't wake the user at all. Battery
@@ -41,6 +46,14 @@ class PermissionStep {
       critical: true,
     ),
     PermissionStep(
+      kind: PermissionStepKind.fullScreenIntent,
+      title: 'Allow full-screen alarms',
+      description:
+          'On Android 14+ this is what lets a firing alarm take over the whole '
+          'screen instead of showing a notification you might sleep through.',
+      critical: true,
+    ),
+    PermissionStep(
       kind: PermissionStepKind.batteryOptimization,
       title: 'Disable battery optimization',
       description:
@@ -58,6 +71,8 @@ class PermissionStep {
       case PermissionStepKind.notifications:
         if (kIsWeb) return true;
         return (await Permission.notification.status).isGranted;
+      case PermissionStepKind.fullScreenIntent:
+        return bridge.canUseFullScreenIntent();
       case PermissionStepKind.batteryOptimization:
         return bridge.isIgnoringBatteryOptimizations();
     }
@@ -69,6 +84,8 @@ class PermissionStep {
         await bridge.openExactAlarmSettings();
       case PermissionStepKind.notifications:
         if (!kIsWeb) await Permission.notification.request();
+      case PermissionStepKind.fullScreenIntent:
+        await bridge.openFullScreenIntentSettings();
       case PermissionStepKind.batteryOptimization:
         await bridge.requestIgnoreBatteryOptimizations();
     }
