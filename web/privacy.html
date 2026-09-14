@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Rise Protocol — Privacy Policy</title>
+<style>
+  :root { color-scheme: light; }
+  body {
+    margin: 0; background: #f6f6f4; color: #17161a;
+    font: 16px/1.6 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  }
+  .bar { height: 6px; background: linear-gradient(90deg, #f2a65e, #c85a1e); }
+  main { max-width: 720px; margin: 0 auto; padding: 40px 24px 80px; }
+  h1 { font-size: 28px; margin-bottom: 4px; }
+  .updated { color: #6b6a70; font-size: 14px; margin-bottom: 32px; }
+  h2 { font-size: 19px; margin-top: 36px; }
+  p, li { color: #33323a; }
+  ul { padding-left: 22px; }
+  code { background: #ecebe7; padding: 2px 6px; border-radius: 4px; font-size: 14px; }
+  a { color: #b35a22; }
+  .note {
+    background: #fff3e6; border: 1px solid #f2a65e; border-radius: 10px;
+    padding: 14px 16px; margin: 20px 0; font-size: 15px;
+  }
+  footer { color: #8a8890; font-size: 13px; margin-top: 48px; }
+</style>
+</head>
+<body>
+<div class="bar"></div>
+<main>
+  <h1>Rise Protocol — Privacy Policy</h1>
+  <p class="updated">Last updated: 14 September 2026</p>
+
+  <div class="note">
+    Short version: Rise Protocol collects nothing. There is no account, no
+    server, and no network connection at all — everything it stores lives
+    only on your device, in the app's own local database, until you delete
+    the app.
+  </div>
+
+  <h2>What this app is</h2>
+  <p>
+    Rise Protocol is an alarm clock app for Android. It lets you create
+    alarms, wakes you up, and requires you to complete a short "mission"
+    (such as solving a math problem) before an alarm can be dismissed.
+  </p>
+
+  <h2>Data we collect</h2>
+  <p><strong>None.</strong> Specifically:</p>
+  <ul>
+    <li>No account, sign-up, or personal information is ever requested.</li>
+    <li>No data is transmitted off your device — the app makes no network
+      requests of its own.</li>
+    <li>Alarms, labels, and settings are stored only in a local database and
+      local preferences on your device (via SQLite and Android's
+      SharedPreferences), never uploaded anywhere.</li>
+    <li>We do not use any third-party analytics, advertising, or tracking
+      SDKs.</li>
+  </ul>
+
+  <h2>Permissions the app requests, and why</h2>
+  <ul>
+    <li><strong>Exact alarms / Alarms &amp; reminders</strong> — required so
+      the OS wakes the app at the precise time you set, instead of a delayed
+      approximation.</li>
+    <li><strong>Notifications</strong> — used to deliver the full-screen
+      ringing alert when an alarm fires.</li>
+    <li><strong>Full-screen intent</strong> (Android 14+) — lets the ringing
+      screen take over the display, including over a locked screen, instead
+      of showing only a small notification.</li>
+    <li><strong>Vibration, wake lock, foreground service</strong> — used
+      while an alarm is actively ringing, to keep the device awake and play
+      the alarm sound reliably.</li>
+    <li><strong>Run at startup (boot-completed)</strong> — used only to
+      re-schedule your existing alarms after the phone restarts. It does not
+      start any network activity.</li>
+    <li><strong>Battery optimisation exemption</strong> — optional; some
+      phone manufacturers aggressively stop background apps, which can
+      silently break alarms. This exemption is requested only if you choose
+      to grant it during setup.</li>
+  </ul>
+
+  <h2>Data retention and deletion</h2>
+  <p>
+    All app data lives on your device only. Uninstalling Rise Protocol
+    deletes it. Since nothing is collected anywhere else, there is nothing
+    for us to retain or for you to separately request the deletion of.
+  </p>
+
+  <h2>Children's privacy</h2>
+  <p>
+    Rise Protocol is not directed at children and does not knowingly collect
+    information from anyone, regardless of age — see "Data we collect"
+    above.
+  </p>
+
+  <h2>Changes to this policy</h2>
+  <p>
+    If this policy changes, the update will be posted at this same address:
+    <code>https://abhipraj2027.github.io/rise_protocol/privacy.html</code>.
+  </p>
+
+  <h2>Contact</h2>
+  <p>
+    Questions about this policy: <a href="mailto:abhishekmusale2027@gmail.com">abhishekmusale2027@gmail.com</a>
+  </p>
+
+  <footer>Rise Protocol</footer>
+</main>
+</body>
+</html>
