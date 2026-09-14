@@ -1,0 +1,9 @@
+# Copy this file to android/key.properties (same directory) and fill in
+# the real values. key.properties is gitignored — never commit it or the
+# keystore file it points to.
+#
+# storeFile is resolved relative to android/ (this file's directory).
+storeFile=release.p12
+storePassword=REPLACE_ME
+keyAlias=release
+keyPassword=REPLACE_ME
