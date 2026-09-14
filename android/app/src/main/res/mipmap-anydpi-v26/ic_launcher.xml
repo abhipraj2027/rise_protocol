@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Adaptive icon (API 26+): OEM launchers mask/animate background +
+     foreground independently. background is a flat colour (ic_launcher.png
+     per density is used pre-26 and as the flat fallback); foreground is the
+     sun mark, rendered well inside the safe zone so OEM masks don't clip it
+     — see tools/gen_icon.py. -->
+<adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
+    <background android:drawable="@color/ic_launcher_background" />
+    <foreground android:drawable="@mipmap/ic_launcher_foreground" />
+</adaptive-icon>
