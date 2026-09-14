@@ -5,7 +5,7 @@ name: Build Android APK
 # workflow") whenever you just want a fresh APK without pushing new code.
 on:
   push:
-    branches: [main, master, 'redesign/**', 'preview/**', 'premium/**']
+    branches: [main, master, 'redesign/**', 'preview/**', 'premium/**', 'playstore/**']
   pull_request:
     branches: [main, master]
   workflow_dispatch:
@@ -17,6 +17,16 @@ jobs:
     # Needed so the master build can publish the APKs to the "latest" release.
     permissions:
       contents: write
+
+    # Release signing (see android/app/build.gradle). Empty strings when the
+    # secrets below aren't set yet — Gradle treats that as "not configured"
+    # and falls back to debug signing, so this is safe before the keystore
+    # secret exists.
+    env:
+      RELEASE_STORE_FILE: app/release.p12
+      RELEASE_STORE_PASSWORD: ${{ secrets.RELEASE_STORE_PASSWORD }}
+      RELEASE_KEY_ALIAS: ${{ secrets.RELEASE_KEY_ALIAS }}
+      RELEASE_KEY_PASSWORD: ${{ secrets.RELEASE_KEY_PASSWORD }}
 
     steps:
       - name: Check out the repo
@@ -45,6 +55,13 @@ jobs:
       # so the Gradle build doesn't stop to prompt.
       - name: Accept Android SDK licenses
         run: yes | flutter doctor --android-licenses || true
+
+      # Puts the real keystore at the path RELEASE_STORE_FILE (above) points
+      # to, only if the secret has been added. Absent the secret, this is
+      # skipped entirely and every build stays debug-signed.
+      - name: Decode release keystore
+        if: env.RELEASE_STORE_PASSWORD != ''
+        run: echo "${{ secrets.RELEASE_KEYSTORE_BASE64 }}" | base64 -d > android/app/release.p12
 
       - name: Install dependencies
         run: flutter pub get
@@ -102,6 +119,29 @@ jobs:
         with:
           name: rise-protocol-release-apk
           path: build/app/outputs/flutter-apk/app-*-release.apk
+          retention-days: 14
+
+      # The App Bundle is the format Play Console actually requires (APKs
+      # above are for sideloading/testing only). Signed with the real
+      # release keystore when it's configured (see the env block up top),
+      # debug-signed otherwise — so this keeps building either way.
+      - name: Build App Bundle
+        run: |
+          set -o pipefail
+          flutter build appbundle --release 2>&1 | tee aab_build.txt || status=$?
+          {
+            echo '### flutter build appbundle'
+            echo '```'
+            tail -c 60000 aab_build.txt
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+          exit ${status:-0}
+
+      - name: Upload App Bundle
+        uses: actions/upload-artifact@v4
+        with:
+          name: rise-protocol-release-aab
+          path: build/app/outputs/bundle/release/app-release.aab
           retention-days: 14
 
       # Publishes the APKs to a rolling "latest" prerelease so there's a

@@ -14,6 +14,12 @@ android/app/release/
 *.iml
 .idea/
 
+# Release signing — never commit the real keystore or its passwords.
+android/key.properties
+*.jks
+*.keystore
+*.p12
+
 # Misc
 .DS_Store
 
