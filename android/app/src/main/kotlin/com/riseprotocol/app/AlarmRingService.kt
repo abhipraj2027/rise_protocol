@@ -99,18 +99,22 @@ class AlarmRingService : Service() {
     }
 
     private fun startRinging(id: Int, label: String, mission: String) {
+        // Try the direct launch FIRST. Android grants a short background-
+        // activity-launch window when an alarm-clock broadcast is delivered;
+        // doing the slower setup below (notification, MediaPlayer, vibrator)
+        // before this call can burn that window and make it fail.
+        try {
+            startActivity(ringingActivityIntent(id, label, mission))
+        } catch (_: Exception) {
+            // Expected when the window has lapsed or the OEM blocks it — the
+            // full-screen-intent notification below is the guaranteed path.
+        }
+
         acquireWakeLock()
         createChannelIfNeeded()
         startForeground(NOTIFICATION_ID, buildNotification(id, label, mission))
         startAudio()
         startVibration()
-
-        try {
-            startActivity(ringingActivityIntent(id, label, mission))
-        } catch (_: Exception) {
-            // Expected on stock Android 10+ when unlocked — the full-screen
-            // intent notification is the guaranteed path.
-        }
     }
 
     private fun startAudio() {
@@ -184,7 +188,7 @@ class AlarmRingService : Service() {
         return NotificationCompat.Builder(this, CHANNEL_ID)
             .setSmallIcon(android.R.drawable.ic_lock_idle_alarm)
             .setContentTitle(if (label.isNotEmpty()) label else "Alarm")
-            .setContentText("Tap to open — or snooze / dismiss below")
+            .setContentText("Tap to open your alarm")
             .setPriority(NotificationCompat.PRIORITY_MAX)
             .setCategory(NotificationCompat.CATEGORY_ALARM)
             .setFullScreenIntent(open, true)
@@ -192,7 +196,13 @@ class AlarmRingService : Service() {
             .setOngoing(true)
             .setAutoCancel(false)
             .addAction(0, "Snooze", servicePendingIntent(ACTION_SNOOZE, id, label, mission))
-            .addAction(0, "Dismiss", servicePendingIntent(ACTION_DISMISS, id, label, mission))
+            .addAction(
+                0,
+                if (mission == "none") "Dismiss" else "Solve to dismiss",
+                // A mission alarm must not be dismissable from the shade, or the
+                // mission is pointless — that button opens the ringing screen.
+                if (mission == "none") servicePendingIntent(ACTION_DISMISS, id, label, mission) else open,
+            )
             .build()
     }
 
