@@ -21,7 +21,11 @@ class AlarmReceiver : BroadcastReceiver() {
 
     override fun onReceive(context: Context, intent: Intent) {
         val id = intent.getIntExtra(EXTRA_ID, -1)
-        if (id == -1) return
+        AlarmLog.add(context, "alarm broadcast received (id=$id)")
+        if (id == -1) {
+            AlarmLog.add(context, "IGNORED: broadcast had no alarm id")
+            return
+        }
         val label = intent.getStringExtra(EXTRA_LABEL) ?: ""
         val mission = intent.getStringExtra(EXTRA_MISSION) ?: "none"
 
@@ -32,10 +36,15 @@ class AlarmReceiver : BroadcastReceiver() {
             putExtra(EXTRA_MISSION, mission)
         }
 
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            ContextCompat.startForegroundService(context, serviceIntent)
-        } else {
-            context.startService(serviceIntent)
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                ContextCompat.startForegroundService(context, serviceIntent)
+            } else {
+                context.startService(serviceIntent)
+            }
+            AlarmLog.add(context, "ring service start requested")
+        } catch (e: Exception) {
+            AlarmLog.add(context, "FAILED to start ring service: ${e.javaClass.simpleName}: ${e.message}")
         }
     }
 }

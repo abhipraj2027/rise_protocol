@@ -8,6 +8,7 @@ import android.net.Uri
 import android.os.Build
 import android.os.PowerManager
 import android.provider.Settings
+import android.widget.Toast
 import io.flutter.plugin.common.MethodCall
 import io.flutter.plugin.common.MethodChannel
 
@@ -34,9 +35,10 @@ object AlarmMethodChannel {
                     ?: return result.error("bad_args", "missing triggerAtMillis", null)
                 val label = call.argument<String>("label") ?: ""
                 val mission = call.argument<String>("missionType") ?: "none"
+                val snooze = call.argument<Int>("snoozeMinutes") ?: 5
                 AlarmScheduler.schedule(
                     context,
-                    AlarmScheduler.Trigger(id, triggerAt, label, mission)
+                    AlarmScheduler.Trigger(id, triggerAt, label, mission, snooze)
                 )
                 result.success(null)
             }
@@ -117,6 +119,7 @@ object AlarmMethodChannel {
             }
 
             "dismissRinging" -> {
+                AlarmLog.add(context, "dismissed from the ringing screen")
                 AlarmRingService.stop(context)
                 onHandledTerminal?.invoke()
                 result.success(null)
@@ -124,17 +127,35 @@ object AlarmMethodChannel {
 
             "snoozeRinging" -> {
                 val id = call.argument<Int>("id") ?: return result.error("bad_args", "missing id", null)
-                val snoozeMinutes = call.argument<Int>("snoozeMinutes") ?: 5
                 val existing = AlarmScheduler.readAll(context).find { it.id == id }
+                // Dart passes null to mean "use this alarm's own snooze length".
+                val minutes = call.argument<Int>("snoozeMinutes") ?: existing?.snoozeMinutes ?: 5
                 val newTrigger = AlarmScheduler.Trigger(
                     id = id,
-                    triggerAtMillis = System.currentTimeMillis() + snoozeMinutes * 60_000L,
+                    triggerAtMillis = System.currentTimeMillis() + minutes * 60_000L,
                     label = existing?.label ?: "",
-                    missionType = existing?.missionType ?: "math"
+                    missionType = existing?.missionType ?: "math",
+                    snoozeMinutes = existing?.snoozeMinutes ?: minutes
                 )
+                AlarmLog.add(context, "snooze requested from the ringing screen (id=$id, ${minutes}m)")
                 AlarmScheduler.schedule(context, newTrigger)
+                Toast.makeText(context, "Snoozed — ringing again in $minutes min", Toast.LENGTH_LONG).show()
                 AlarmRingService.stop(context)
                 onHandledTerminal?.invoke()
+                result.success(null)
+            }
+
+            "muteRinging" -> {
+                AlarmRingService.mute(context, call.argument<Int>("seconds") ?: 15)
+                result.success(null)
+            }
+
+            "getAlarmLog" -> {
+                result.success(AlarmLog.read(context))
+            }
+
+            "clearAlarmLog" -> {
+                AlarmLog.clear(context)
                 result.success(null)
             }
 

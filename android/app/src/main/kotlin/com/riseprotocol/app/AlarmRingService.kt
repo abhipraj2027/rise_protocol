@@ -19,6 +19,7 @@ import android.os.PowerManager
 import android.os.VibrationEffect
 import android.os.Vibrator
 import android.os.VibratorManager
+import android.widget.Toast
 import androidx.core.app.NotificationCompat
 
 /**
@@ -42,6 +43,8 @@ class AlarmRingService : Service() {
         const val ACTION_STOP_RINGING = "action_stop_ringing"
         const val ACTION_DISMISS = "action_dismiss"
         const val ACTION_SNOOZE = "action_snooze"
+        const val ACTION_MUTE = "action_mute"
+        const val EXTRA_MUTE_SECONDS = "extra_mute_seconds"
 
         /** Broadcast the ringing Activity listens for, so it closes when the
          *  alarm is dismissed/snoozed from the notification. */
@@ -51,6 +54,17 @@ class AlarmRingService : Service() {
         private const val LEGACY_CHANNEL_ID = "rise_protocol_alarm_channel"
         private const val NOTIFICATION_ID = 4200
         private const val SNOOZE_MINUTES = 5
+
+        /** Silences sound + vibration for [seconds] (re-arming resets the
+         *  timer). It always comes back on its own, so an abandoned mission
+         *  cannot leave the alarm muted forever. */
+        fun mute(context: Context, seconds: Int) {
+            val intent = Intent(context, AlarmRingService::class.java).apply {
+                action = ACTION_MUTE
+                putExtra(EXTRA_MUTE_SECONDS, seconds)
+            }
+            context.startService(intent)
+        }
 
         fun stop(context: Context) {
             val intent = Intent(context, AlarmRingService::class.java).apply {
@@ -66,6 +80,12 @@ class AlarmRingService : Service() {
     private var vibrator: Vibrator? = null
     private val handler = Handler(Looper.getMainLooper())
 
+    // Mute-while-solving state. The volume ramp checks `muted` so it cannot
+    // un-mute the alarm mid-answer.
+    @Volatile private var muted = false
+    private var rampVolume = 0.35f
+    private val unmuteRunnable = Runnable { unmute() }
+
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         when (intent?.action) {
             ACTION_STOP_RINGING, ACTION_DISMISS -> {
@@ -75,18 +95,32 @@ class AlarmRingService : Service() {
             ACTION_SNOOZE -> {
                 val id = intent?.getIntExtra(AlarmReceiver.EXTRA_ID, -1) ?: -1
                 if (id != -1) {
+                    val stored = AlarmScheduler.readAll(this).find { it.id == id }
+                    val minutes = stored?.snoozeMinutes ?: SNOOZE_MINUTES
                     AlarmScheduler.schedule(
                         this,
                         AlarmScheduler.Trigger(
                             id,
-                            System.currentTimeMillis() + SNOOZE_MINUTES * 60_000L,
+                            System.currentTimeMillis() + minutes * 60_000L,
                             intent?.getStringExtra(AlarmReceiver.EXTRA_LABEL) ?: "",
                             intent?.getStringExtra(AlarmReceiver.EXTRA_MISSION) ?: "none",
+                            minutes,
                         ),
                     )
+                    AlarmLog.add(this, "snoozed from the notification (id=$id, ${minutes}m)")
+                    Toast.makeText(this, "Snoozed - ringing again in $minutes min", Toast.LENGTH_LONG).show()
                 }
                 stopSelfCleanly()
                 return START_NOT_STICKY
+            }
+            ACTION_MUTE -> {
+                if (player == null && vibrator == null) {
+                    // Nothing is ringing, so do not leave an idle service behind.
+                    stopSelf()
+                    return START_NOT_STICKY
+                }
+                muteFor(intent?.getIntExtra(EXTRA_MUTE_SECONDS, 15) ?: 15)
+                return START_STICKY
             }
             else -> {
                 val id = intent?.getIntExtra(AlarmReceiver.EXTRA_ID, -1) ?: -1
@@ -103,16 +137,25 @@ class AlarmRingService : Service() {
         // activity-launch window when an alarm-clock broadcast is delivered;
         // doing the slower setup below (notification, MediaPlayer, vibrator)
         // before this call can burn that window and make it fail.
+        AlarmLog.add(this, "ring service started (id=$id, mission=$mission)")
         try {
             startActivity(ringingActivityIntent(id, label, mission))
-        } catch (_: Exception) {
-            // Expected when the window has lapsed or the OEM blocks it — the
+            AlarmLog.add(this, "direct screen launch: OK")
+        } catch (e: Exception) {
+            // Expected when the window has lapsed or the OEM blocks it; the
             // full-screen-intent notification below is the guaranteed path.
+            AlarmLog.add(this, "direct screen launch blocked: ${e.javaClass.simpleName}")
         }
 
         acquireWakeLock()
         createChannelIfNeeded()
         startForeground(NOTIFICATION_ID, buildNotification(id, label, mission))
+        val fsiOk = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+            (getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager).canUseFullScreenIntent()
+        } else {
+            true
+        }
+        AlarmLog.add(this, "notification posted (fullScreenIntentAllowed=$fsiOk)")
         startAudio()
         startVibration()
     }
@@ -140,10 +183,15 @@ class AlarmRingService : Service() {
                     if (fallback != null) setDataSource(this@AlarmRingService, fallback)
                 }
                 setOnPreparedListener {
-                    it.setVolume(0.35f, 0.35f)
+                    val v = if (muted) 0f else 0.35f
+                    it.setVolume(v, v)
                     it.start()
+                    AlarmLog.add(this@AlarmRingService, "alarm sound playing")
                 }
-                setOnErrorListener { _, _, _ -> true }
+                setOnErrorListener { _, what, extra ->
+                    AlarmLog.add(this@AlarmRingService, "AUDIO ERROR what=$what extra=$extra")
+                    true
+                }
                 prepareAsync()
             }
         } catch (_: Exception) {
@@ -152,16 +200,18 @@ class AlarmRingService : Service() {
             player = null
         }
 
-        // ~5-second ramp from a gentle start to full volume.
-        var vol = 0.35f
+        // ~5-second ramp from a gentle start to full volume (skipped while muted).
+        rampVolume = 0.35f
         val ramp = object : Runnable {
             override fun run() {
-                vol = (vol + 0.16f).coerceAtMost(1f)
-                try {
-                    player?.setVolume(vol, vol)
-                } catch (_: Exception) {
+                rampVolume = (rampVolume + 0.16f).coerceAtMost(1f)
+                if (!muted) {
+                    try {
+                        player?.setVolume(rampVolume, rampVolume)
+                    } catch (_: Exception) {
+                    }
                 }
-                if (vol < 1f) handler.postDelayed(this, 1200)
+                if (rampVolume < 1f) handler.postDelayed(this, 1200)
             }
         }
         handler.postDelayed(ramp, 2500)
@@ -281,7 +331,33 @@ class AlarmRingService : Service() {
         manager.createNotificationChannel(channel)
     }
 
+    private fun muteFor(seconds: Int) {
+        muted = true
+        try {
+            player?.setVolume(0f, 0f)
+        } catch (_: Exception) {
+        }
+        try {
+            vibrator?.cancel()
+        } catch (_: Exception) {
+        }
+        handler.removeCallbacks(unmuteRunnable)
+        handler.postDelayed(unmuteRunnable, seconds.coerceIn(3, 120) * 1000L)
+    }
+
+    private fun unmute() {
+        if (!muted) return
+        muted = false
+        try {
+            player?.setVolume(rampVolume, rampVolume)
+        } catch (_: Exception) {
+        }
+        startVibration()
+        AlarmLog.add(this, "no input for a while - alarm resumed")
+    }
+
     private fun teardown() {
+        muted = false
         handler.removeCallbacksAndMessages(null)
         try {
             player?.stop()
@@ -304,6 +380,7 @@ class AlarmRingService : Service() {
     }
 
     private fun stopSelfCleanly() {
+        AlarmLog.add(this, "ring service stopping")
         teardown()
         sendBroadcast(Intent(ACTION_FINISH_RINGING_UI).setPackage(packageName))
         stopForeground(STOP_FOREGROUND_REMOVE)

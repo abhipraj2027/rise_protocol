@@ -26,6 +26,7 @@ class AlarmScheduler {
       triggerAtMillis: alarm.nextTriggerMillis(),
       label: alarm.label,
       missionType: alarm.missionType.name,
+      snoozeMinutes: alarm.snoozeMinutes,
     );
   }
 

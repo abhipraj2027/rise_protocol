@@ -40,12 +40,17 @@ class MathMissionView extends StatefulWidget {
     super.key,
     required this.difficulty,
     required this.onComplete,
+    this.onInteraction,
     this.problemCount = 3,
   });
 
   final int difficulty;
   final int problemCount;
   final VoidCallback onComplete;
+
+  /// Called whenever the user types or submits, so the host can quiet the
+  /// alarm while they work on the answer.
+  final VoidCallback? onInteraction;
 
   @override
   State<MathMissionView> createState() => _MathMissionViewState();
@@ -73,6 +78,7 @@ class _MathMissionViewState extends State<MathMissionView> {
   }
 
   void _submit() {
+    widget.onInteraction?.call();
     final entered = int.tryParse(_controller.text.trim());
     final current = _problems[_index];
     if (entered == current.answer) {
@@ -128,6 +134,7 @@ class _MathMissionViewState extends State<MathMissionView> {
               errorText: _error,
               hintText: 'Answer',
             ),
+            onChanged: (_) => widget.onInteraction?.call(),
             onSubmitted: (_) => _submit(),
           ),
         ),

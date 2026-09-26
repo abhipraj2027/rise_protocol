@@ -42,6 +42,7 @@ class AlarmRingingActivity : FlutterActivity() {
         super.onCreate(savedInstanceState)
 
         alarmId = intent.getIntExtra(AlarmReceiver.EXTRA_ID, -1)
+        AlarmLog.add(this, "ringing screen opened (id=$alarmId)")
 
         val filter = IntentFilter(AlarmRingService.ACTION_FINISH_RINGING_UI)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
@@ -96,6 +97,7 @@ class AlarmRingingActivity : FlutterActivity() {
             unregisterReceiver(finishReceiver)
         } catch (_: Exception) {
         }
+        AlarmLog.add(this, "ringing screen closed (id=$alarmId)")
         // Deliberately NOT stopping AlarmRingService here. The alarm must only
         // stop through dismissRinging / snoozeRinging (mission cleared or an
         // explicit snooze); if the OS merely recreates or kills this screen,
