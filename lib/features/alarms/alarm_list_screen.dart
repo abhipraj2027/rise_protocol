@@ -149,7 +149,7 @@ class _DismissibleAlarm extends StatelessWidget {
         alignment: Alignment.centerRight,
         padding: const EdgeInsets.only(right: AppTokens.space24),
         decoration: BoxDecoration(
-          color: t.danger.withOpacity(0.16),
+          color: t.danger.withValues(alpha: 0.16),
           borderRadius: AppTokens.cornerLg,
         ),
         child: Icon(Icons.delete_outline_rounded, color: t.danger),

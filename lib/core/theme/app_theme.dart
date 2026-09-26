@@ -52,7 +52,6 @@ class AppTheme {
     );
 
     final base = ThemeData(
-      useMaterial3: true,
       brightness: brightness,
       colorScheme: scheme,
       fontFamily: 'Inter',
@@ -80,7 +79,7 @@ class AppTheme {
         scrolledUnderElevation: 0,
         centerTitle: false,
       ),
-      cardTheme: CardTheme(
+      cardTheme: CardThemeData(
         color: tokens.surface1,
         surfaceTintColor: Colors.transparent,
         elevation: 0,
