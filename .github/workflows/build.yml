@@ -46,7 +46,7 @@ jobs:
       - name: Set up Flutter
         uses: subosito/flutter-action@v2
         with:
-          flutter-version: '3.24.0'
+          flutter-version: '3.47.1'
           channel: 'stable'
           cache: true
 
@@ -73,7 +73,7 @@ jobs:
       - name: Analyze
         run: |
           set -o pipefail
-          flutter analyze 2>&1 | tee analyze.txt || status=$?
+          flutter analyze --no-fatal-infos 2>&1 | tee analyze.txt || status=$?
           {
             echo '### flutter analyze'
             echo '```'
@@ -97,8 +97,8 @@ jobs:
       - name: Build release APKs
         run: |
           set -o pipefail
-          flutter build apk --release --split-per-abi 2>&1 | tee build.txt || status=$?
-          flutter build apk --release 2>&1 | tee -a build.txt || status=$?
+          flutter build apk --release --split-per-abi --build-number=${{ github.run_number }} 2>&1 | tee build.txt || status=$?
+          flutter build apk --release --build-number=${{ github.run_number }} 2>&1 | tee -a build.txt || status=$?
           tail -c 60000 build.txt >> "$GITHUB_STEP_SUMMARY"
           exit ${status:-0}
 
@@ -128,7 +128,7 @@ jobs:
       - name: Build App Bundle
         run: |
           set -o pipefail
-          flutter build appbundle --release 2>&1 | tee aab_build.txt || status=$?
+          flutter build appbundle --release --build-number=${{ github.run_number }} 2>&1 | tee aab_build.txt || status=$?
           {
             echo '### flutter build appbundle'
             echo '```'

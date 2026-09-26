@@ -126,7 +126,7 @@ class AppTokens extends ThemeExtension<AppTokens> {
   /// Large and diffuse rather than tight — reads as depth, not a drop line.
   List<BoxShadow> get shadowCard => [
         BoxShadow(
-          color: Colors.black.withOpacity(isDark ? 0.40 : 0.05),
+          color: Colors.black.withValues(alpha: isDark ? 0.40 : 0.05),
           blurRadius: 24,
           spreadRadius: -4,
           offset: const Offset(0, 8),
@@ -135,7 +135,7 @@ class AppTokens extends ThemeExtension<AppTokens> {
 
   List<BoxShadow> get shadowLifted => [
         BoxShadow(
-          color: Colors.black.withOpacity(isDark ? 0.55 : 0.14),
+          color: Colors.black.withValues(alpha: isDark ? 0.55 : 0.14),
           blurRadius: 48,
           spreadRadius: -8,
           offset: const Offset(0, 20),
@@ -146,7 +146,7 @@ class AppTokens extends ThemeExtension<AppTokens> {
   /// dark UI the brand shows up as this halo, not as big flat fills.
   List<BoxShadow> get glow => [
         BoxShadow(
-          color: brand.withOpacity(isDark ? 0.30 : 0.20),
+          color: brand.withValues(alpha: isDark ? 0.30 : 0.20),
           blurRadius: 40,
           spreadRadius: -12,
           offset: const Offset(0, 8),

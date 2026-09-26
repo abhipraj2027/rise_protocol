@@ -32,10 +32,10 @@ class GlassSurface extends StatelessWidget {
         filter: ui.ImageFilter.blur(sigmaX: blur, sigmaY: blur),
         child: DecoratedBox(
           decoration: BoxDecoration(
-            color: t.surface1.withOpacity(opacity),
+            color: t.surface1.withValues(alpha: opacity),
             borderRadius: borderRadius,
             border: bordered
-                ? Border.all(color: t.textPrimary.withOpacity(0.07))
+                ? Border.all(color: t.textPrimary.withValues(alpha: 0.07))
                 : null,
           ),
           child: child,

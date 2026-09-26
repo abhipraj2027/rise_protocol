@@ -27,7 +27,7 @@ class AlarmTile extends StatelessWidget {
     final text = Theme.of(context).textTheme;
     final dim = !alarm.enabled;
 
-    Color fade(Color c) => dim ? c.withOpacity(0.45) : c;
+    Color fade(Color c) => dim ? c.withValues(alpha: 0.45) : c;
 
     return AppCard(
       onTap: onTap,
