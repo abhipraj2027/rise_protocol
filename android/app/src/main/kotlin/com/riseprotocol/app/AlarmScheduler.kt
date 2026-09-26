@@ -27,7 +27,10 @@ object AlarmScheduler {
         val id: Int,
         val triggerAtMillis: Long,
         val label: String,
-        val missionType: String
+        val missionType: String,
+        /** The alarm's own snooze length, so snoozing from the ringing screen
+         *  or the notification honours the editor setting. */
+        val snoozeMinutes: Int = 5
     )
 
     fun schedule(context: Context, trigger: Trigger) {
@@ -44,7 +47,21 @@ object AlarmScheduler {
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
         val info = AlarmManager.AlarmClockInfo(trigger.triggerAtMillis, showIntent)
-        alarmManager.setAlarmClock(info, pendingIntent)
+        try {
+            alarmManager.setAlarmClock(info, pendingIntent)
+        } catch (e: Exception) {
+            AlarmLog.add(context, "FAILED to schedule id=${trigger.id}: ${e.javaClass.simpleName}: ${e.message}")
+            throw e
+        }
+
+        val inSeconds = (trigger.triggerAtMillis - System.currentTimeMillis()) / 1000
+        val at = java.text.SimpleDateFormat("HH:mm:ss", java.util.Locale.US)
+            .format(java.util.Date(trigger.triggerAtMillis))
+        AlarmLog.add(
+            context,
+            "scheduled id=${trigger.id} for $at (in ${inSeconds}s), snooze=${trigger.snoozeMinutes}m, " +
+                "exactAllowed=${canScheduleExactAlarms(context)}"
+        )
 
         persistTrigger(context, trigger)
     }
@@ -104,7 +121,8 @@ object AlarmScheduler {
                     id = obj.getInt("id"),
                     triggerAtMillis = obj.getLong("triggerAtMillis"),
                     label = obj.optString("label", ""),
-                    missionType = obj.optString("missionType", "none")
+                    missionType = obj.optString("missionType", "none"),
+                    snoozeMinutes = obj.optInt("snoozeMinutes", 5)
                 )
             )
         }
@@ -119,6 +137,7 @@ object AlarmScheduler {
             obj.put("triggerAtMillis", t.triggerAtMillis)
             obj.put("label", t.label)
             obj.put("missionType", t.missionType)
+            obj.put("snoozeMinutes", t.snoozeMinutes)
             array.put(obj)
         }
         prefs(context).edit().putString(KEY_TRIGGERS, array.toString()).apply()

@@ -7,6 +7,7 @@ import 'data/alarm.dart';
 import 'features/alarms/alarm_list_screen.dart';
 import 'features/alarms/edit_alarm_screen.dart';
 import 'features/dev/gallery_screen.dart';
+import 'features/diagnostics/alarm_diagnostics_screen.dart';
 import 'features/onboarding/permission_onboarding_screen.dart';
 import 'features/ringing/ringing_screen.dart';
 
@@ -66,6 +67,13 @@ class RiseProtocolApp extends ConsumerWidget {
       return MaterialPageRoute(
         settings: settings,
         builder: (_) => EditAlarmScreen(alarmId: id),
+      );
+    }
+
+    if (uri.path == '/diagnostics') {
+      return MaterialPageRoute(
+        settings: settings,
+        builder: (_) => const AlarmDiagnosticsScreen(),
       );
     }
 

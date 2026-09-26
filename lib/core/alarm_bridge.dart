@@ -19,6 +19,7 @@ abstract interface class AlarmBridge {
     required int triggerAtMillis,
     required String label,
     required String missionType,
+    required int snoozeMinutes,
   });
 
   Future<void> cancel(int alarmId);
@@ -51,9 +52,22 @@ abstract interface class AlarmBridge {
   /// foreground service, close the native ringing Activity.
   Future<void> dismissRinging(int alarmId);
 
-  /// Re-schedules this alarm [snoozeMinutes] from now and closes the ringing
-  /// UI without marking the mission complete.
-  Future<void> snoozeRinging(int alarmId, int snoozeMinutes);
+  /// Re-schedules this alarm and closes the ringing UI without marking the
+  /// mission complete. [snoozeMinutes] null means "use this alarm's own
+  /// snooze length" (as saved in the editor).
+  Future<void> snoozeRinging(int alarmId, int? snoozeMinutes);
+
+  /// Silences the alarm sound + vibration for [seconds] while the user is
+  /// solving the mission. Native brings it back automatically after that
+  /// long unless this is called again, so an abandoned mission can't leave
+  /// the alarm muted.
+  Future<void> muteRinging(int seconds);
+
+  /// The on-device alarm event log (scheduled / fired / screen opened /
+  /// snoozed…), oldest first. Used by the Alarm diagnostics screen.
+  Future<List<String>> getAlarmLog();
+
+  Future<void> clearAlarmLog();
 }
 
 class PlatformAlarmBridge implements AlarmBridge {
@@ -67,12 +81,14 @@ class PlatformAlarmBridge implements AlarmBridge {
     required int triggerAtMillis,
     required String label,
     required String missionType,
+    required int snoozeMinutes,
   }) async {
     await _channel.invokeMethod('scheduleAlarm', {
       'id': alarmId,
       'triggerAtMillis': triggerAtMillis,
       'label': label,
       'missionType': missionType,
+      'snoozeMinutes': snoozeMinutes,
     });
   }
 
@@ -126,11 +142,27 @@ class PlatformAlarmBridge implements AlarmBridge {
   }
 
   @override
-  Future<void> snoozeRinging(int alarmId, int snoozeMinutes) async {
+  Future<void> snoozeRinging(int alarmId, int? snoozeMinutes) async {
     await _channel.invokeMethod('snoozeRinging', {
       'id': alarmId,
       'snoozeMinutes': snoozeMinutes,
     });
+  }
+
+  @override
+  Future<void> muteRinging(int seconds) async {
+    await _channel.invokeMethod('muteRinging', {'seconds': seconds});
+  }
+
+  @override
+  Future<List<String>> getAlarmLog() async {
+    final result = await _channel.invokeListMethod<String>('getAlarmLog');
+    return result ?? const [];
+  }
+
+  @override
+  Future<void> clearAlarmLog() async {
+    await _channel.invokeMethod('clearAlarmLog');
   }
 }
 
@@ -145,6 +177,7 @@ class FakeAlarmBridge implements AlarmBridge {
     required int triggerAtMillis,
     required String label,
     required String missionType,
+    required int snoozeMinutes,
   }) async {}
 
   @override
@@ -175,7 +208,17 @@ class FakeAlarmBridge implements AlarmBridge {
   Future<void> dismissRinging(int alarmId) async {}
 
   @override
-  Future<void> snoozeRinging(int alarmId, int snoozeMinutes) async {}
+  Future<void> snoozeRinging(int alarmId, int? snoozeMinutes) async {}
+
+  @override
+  Future<void> muteRinging(int seconds) async {}
+
+  @override
+  Future<List<String>> getAlarmLog() async =>
+      const ['(the alarm log is only available in the Android app)'];
+
+  @override
+  Future<void> clearAlarmLog() async {}
 }
 
 final alarmBridgeProvider = Provider<AlarmBridge>(

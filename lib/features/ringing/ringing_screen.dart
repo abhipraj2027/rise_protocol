@@ -43,6 +43,7 @@ class _RingingScreenState extends ConsumerState<RingingScreen> {
   DateTime _now = DateTime.now();
   bool _missionActive = false;
   bool _dismissed = false;
+  DateTime? _lastMuteCall;
 
   @override
   void initState() {
@@ -71,10 +72,23 @@ class _RingingScreenState extends ConsumerState<RingingScreen> {
   Future<void> _snooze() async {
     if (_dismissed) return;
     HapticFeedback.selectionClick();
-    // TODO(phase D): read the alarm's configured snoozeMinutes/maxSnoozes
-    // instead of the hardcoded default once this screen has DB access.
-    await ref.read(alarmBridgeProvider).snoozeRinging(widget.alarmId, 5);
+    // null = use this alarm's own snooze length (the editor setting, stored
+    // natively when the alarm was scheduled).
+    await ref.read(alarmBridgeProvider).snoozeRinging(widget.alarmId, null);
     if (mounted) Navigator.of(context).maybePop();
+  }
+
+  /// Quiets the alarm while the user works on the mission. Native brings the
+  /// sound back by itself after 15s without input, so this is throttled to
+  /// one call every few seconds instead of one per keystroke.
+  void _quiet() {
+    final now = DateTime.now();
+    final last = _lastMuteCall;
+    if (last != null && now.difference(last) < const Duration(seconds: 5)) {
+      return;
+    }
+    _lastMuteCall = now;
+    ref.read(alarmBridgeProvider).muteRinging(15);
   }
 
   @override
@@ -119,12 +133,15 @@ class _RingingScreenState extends ConsumerState<RingingScreen> {
                             ? _MissionArea(
                                 missionType: widget.missionType,
                                 onComplete: _onMissionComplete,
+                                onInteraction: _quiet,
                               )
                             : _StartArea(
                                 missionType: widget.missionType,
                                 onDismissNoMission: _onMissionComplete,
-                                onStartMission: () =>
-                                    setState(() => _missionActive = true),
+                                onStartMission: () {
+                                  setState(() => _missionActive = true);
+                                  _quiet();
+                                },
                               ),
                       const Spacer(flex: 3),
                       if (!_dismissed) _SnoozeButton(onTap: _snooze),
@@ -221,16 +238,25 @@ class _StartArea extends StatelessWidget {
 }
 
 class _MissionArea extends StatelessWidget {
-  const _MissionArea({required this.missionType, required this.onComplete});
+  const _MissionArea({
+    required this.missionType,
+    required this.onComplete,
+    required this.onInteraction,
+  });
 
   final MissionType missionType;
   final VoidCallback onComplete;
+  final VoidCallback onInteraction;
 
   @override
   Widget build(BuildContext context) {
     switch (missionType) {
       case MissionType.math:
-        return MathMissionView(difficulty: 1, onComplete: onComplete);
+        return MathMissionView(
+          difficulty: 1,
+          onComplete: onComplete,
+          onInteraction: onInteraction,
+        );
       case MissionType.none:
         return const SizedBox.shrink();
       case MissionType.shake:

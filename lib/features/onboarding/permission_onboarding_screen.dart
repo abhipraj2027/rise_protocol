@@ -141,7 +141,7 @@ class _PermissionOnboardingScreenState
                 ),
                 const Gap(AppTokens.space8),
                 Text(
-                  'Android muzzles background apps by default. Three settings '
+                  'Android muzzles background apps by default. A few settings '
                   'are what let Rise Protocol ring through a locked, sleeping '
                   'phone — without them an alarm can silently no-show.',
                   style: text.bodyMedium,
@@ -195,6 +195,17 @@ class _PermissionOnboardingScreenState
                         ? _finish
                         : null,
               ),
+              if (widget.isReview) ...[
+                const Gap(AppTokens.space8),
+                Center(
+                  child: TextButton.icon(
+                    onPressed: () =>
+                        Navigator.of(context).pushNamed('/diagnostics'),
+                    icon: const Icon(Icons.bug_report_outlined, size: 18),
+                    label: const Text('Alarm diagnostics'),
+                  ),
+                ),
+              ],
               if (!widget.isReview && status != null && !_allCriticalGranted) ...[
                 const Gap(AppTokens.space8),
                 Center(
