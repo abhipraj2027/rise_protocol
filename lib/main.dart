@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import 'core/alarm_bridge.dart';
 import 'core/app_prefs.dart';
 import 'core/theme/app_theme.dart';
 import 'data/alarm.dart';
@@ -36,6 +35,13 @@ class RiseProtocolApp extends ConsumerWidget {
       // `defaultRouteName`, which we parse once at startup.
       initialRoute: WidgetsBinding.instance.platformDispatcher.defaultRouteName,
       onGenerateRoute: (settings) => _onGenerateRoute(settings, ref),
+      // By default Flutter also builds '/' underneath a deep initial route
+      // like '/ringing?id=…'. On the ringing engine that put the normal
+      // home screen (and its startup work) under the alarm. Build exactly
+      // the route that was asked for and nothing else.
+      onGenerateInitialRoutes: (initialRoute) => [
+        _onGenerateRoute(RouteSettings(name: initialRoute), ref),
+      ],
     );
   }
 
@@ -96,7 +102,6 @@ class _HomeBootstrapState extends ConsumerState<_HomeBootstrap> {
   @override
   void initState() {
     super.initState();
-    ref.read(alarmBridgeProvider).stopAnyRingingService();
     _onboardingComplete = ref.read(appPrefsProvider).isOnboardingComplete();
   }
 

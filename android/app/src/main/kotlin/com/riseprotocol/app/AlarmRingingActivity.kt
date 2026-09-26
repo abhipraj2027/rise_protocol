@@ -96,7 +96,10 @@ class AlarmRingingActivity : FlutterActivity() {
             unregisterReceiver(finishReceiver)
         } catch (_: Exception) {
         }
-        AlarmRingService.stop(this)
+        // Deliberately NOT stopping AlarmRingService here. The alarm must only
+        // stop through dismissRinging / snoozeRinging (mission cleared or an
+        // explicit snooze); if the OS merely recreates or kills this screen,
+        // the alarm has to keep ringing.
         super.onDestroy()
     }
 }
