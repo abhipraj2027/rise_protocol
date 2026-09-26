@@ -8,20 +8,23 @@ import android.content.SharedPreferences
 import android.os.Build
 import org.json.JSONArray
 import org.json.JSONObject
+import java.util.Calendar
 
 /**
  * Single place that knows how to talk to [AlarmManager] and how to persist
- * "what should be scheduled" so [BootReceiver] can re-arm everything after a
- * reboot without needing Dart/Flutter to be running.
+ * "what should be scheduled" so [AlarmReceiver] and [BootReceiver] can re-arm
+ * alarms without Dart/Flutter running.
  *
  * The persisted mirror (SharedPreferences, JSON) is intentionally decoupled
- * from the app's real database (SQLite, owned by Dart via sqflite) — this
- * copy only ever needs enough to re-issue an AlarmManager call, and reading
- * it from a BroadcastReceiver at boot has to be cheap and dependency-free.
+ * from the app's real database (SQLite, owned by Dart via sqflite). Besides
+ * the next trigger time it keeps the alarm's repeat *rule* (hour, minute,
+ * days), which is what lets a repeating alarm arm its own next occurrence the
+ * moment it fires — even if the app is never opened again.
  */
 object AlarmScheduler {
     private const val PREFS_NAME = "riseprotocol_scheduled_alarms"
     private const val KEY_TRIGGERS = "triggers"
+    private const val KEY_FIRED_ONE_SHOTS = "fired_one_shots"
 
     data class Trigger(
         val id: Int,
@@ -30,8 +33,37 @@ object AlarmScheduler {
         val missionType: String,
         /** The alarm's own snooze length, so snoozing from the ringing screen
          *  or the notification honours the editor setting. */
-        val snoozeMinutes: Int = 5
+        val snoozeMinutes: Int = 5,
+        /** The alarm's wall-clock time and repeat days (ISO weekday, 1 = Mon
+         *  … 7 = Sun; same as Dart's DateTime.weekday). hour = -1 means the
+         *  rule is unknown (an alarm saved by an older build). */
+        val hour: Int = -1,
+        val minute: Int = 0,
+        val repeatDays: Set<Int> = emptySet()
     )
+
+    fun isRepeating(t: Trigger): Boolean = t.hour >= 0 && t.repeatDays.isNotEmpty()
+
+    /** The next regular occurrence of a repeating alarm strictly after
+     *  [fromMillis]. Mirrors Alarm.nextTriggerMillis in Dart. */
+    fun nextOccurrence(t: Trigger, fromMillis: Long): Long {
+        for (offset in 0..7) {
+            val c = Calendar.getInstance().apply {
+                timeInMillis = fromMillis
+                set(Calendar.HOUR_OF_DAY, t.hour)
+                set(Calendar.MINUTE, t.minute)
+                set(Calendar.SECOND, 0)
+                set(Calendar.MILLISECOND, 0)
+                add(Calendar.DAY_OF_YEAR, offset)
+            }
+            // Calendar: Sunday = 1 … Saturday = 7  →  ISO: Monday = 1 … Sunday = 7
+            val isoWeekday = ((c.get(Calendar.DAY_OF_WEEK) + 5) % 7) + 1
+            if (t.repeatDays.contains(isoWeekday) && c.timeInMillis > fromMillis) {
+                return c.timeInMillis
+            }
+        }
+        return fromMillis + 7 * 24 * 60 * 60 * 1000L
+    }
 
     fun schedule(context: Context, trigger: Trigger) {
         val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
@@ -55,15 +87,18 @@ object AlarmScheduler {
         }
 
         val inSeconds = (trigger.triggerAtMillis - System.currentTimeMillis()) / 1000
-        val at = java.text.SimpleDateFormat("HH:mm:ss", java.util.Locale.US)
+        val at = java.text.SimpleDateFormat("EEE HH:mm:ss", java.util.Locale.US)
             .format(java.util.Date(trigger.triggerAtMillis))
         AlarmLog.add(
             context,
             "scheduled id=${trigger.id} for $at (in ${inSeconds}s), snooze=${trigger.snoozeMinutes}m, " +
+                "repeats=${if (isRepeating(trigger)) trigger.repeatDays.sorted().toString() else "no"}, " +
                 "exactAllowed=${canScheduleExactAlarms(context)}"
         )
 
         persistTrigger(context, trigger)
+        // Anything with a pending trigger is, by definition, not "already fired".
+        unmarkOneShotFired(context, trigger.id)
     }
 
     fun cancel(context: Context, id: Int) {
@@ -74,6 +109,7 @@ object AlarmScheduler {
         )
         alarmManager.cancel(pendingIntent)
         removeTrigger(context, id)
+        unmarkOneShotFired(context, id)
     }
 
     fun canScheduleExactAlarms(context: Context): Boolean {
@@ -94,7 +130,33 @@ object AlarmScheduler {
         )
     }
 
-    // ---- Persistence (for BootReceiver) ----
+    // ---- One-shot alarms that have fired -----------------------------------
+    // Dart owns the alarm list, so a one-time alarm that has rung can only be
+    // switched off in the UI next time the app runs. Native records the ids;
+    // Dart collects them with takeFiredOneShots().
+
+    fun markOneShotFired(context: Context, id: Int) {
+        val set = HashSet(prefs(context).getStringSet(KEY_FIRED_ONE_SHOTS, emptySet()) ?: emptySet())
+        if (set.add(id.toString())) {
+            prefs(context).edit().putStringSet(KEY_FIRED_ONE_SHOTS, set).apply()
+        }
+    }
+
+    private fun unmarkOneShotFired(context: Context, id: Int) {
+        val set = HashSet(prefs(context).getStringSet(KEY_FIRED_ONE_SHOTS, emptySet()) ?: emptySet())
+        if (set.remove(id.toString())) {
+            prefs(context).edit().putStringSet(KEY_FIRED_ONE_SHOTS, set).apply()
+        }
+    }
+
+    fun takeFiredOneShots(context: Context): List<Int> {
+        val set = prefs(context).getStringSet(KEY_FIRED_ONE_SHOTS, emptySet()) ?: emptySet()
+        val ids = set.mapNotNull { it.toIntOrNull() }
+        if (set.isNotEmpty()) prefs(context).edit().remove(KEY_FIRED_ONE_SHOTS).apply()
+        return ids
+    }
+
+    // ---- Persistence ---------------------------------------------------------
 
     private fun prefs(context: Context): SharedPreferences =
         context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
@@ -116,13 +178,21 @@ object AlarmScheduler {
         val result = mutableListOf<Trigger>()
         for (i in 0 until array.length()) {
             val obj = array.getJSONObject(i)
+            val days = mutableSetOf<Int>()
+            val daysJson = obj.optJSONArray("repeatDays")
+            if (daysJson != null) {
+                for (d in 0 until daysJson.length()) days.add(daysJson.getInt(d))
+            }
             result.add(
                 Trigger(
                     id = obj.getInt("id"),
                     triggerAtMillis = obj.getLong("triggerAtMillis"),
                     label = obj.optString("label", ""),
                     missionType = obj.optString("missionType", "none"),
-                    snoozeMinutes = obj.optInt("snoozeMinutes", 5)
+                    snoozeMinutes = obj.optInt("snoozeMinutes", 5),
+                    hour = obj.optInt("hour", -1),
+                    minute = obj.optInt("minute", 0),
+                    repeatDays = days
                 )
             )
         }
@@ -138,6 +208,11 @@ object AlarmScheduler {
             obj.put("label", t.label)
             obj.put("missionType", t.missionType)
             obj.put("snoozeMinutes", t.snoozeMinutes)
+            obj.put("hour", t.hour)
+            obj.put("minute", t.minute)
+            val days = JSONArray()
+            for (d in t.repeatDays.sorted()) days.put(d)
+            obj.put("repeatDays", days)
             array.put(obj)
         }
         prefs(context).edit().putString(KEY_TRIGGERS, array.toString()).apply()

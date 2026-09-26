@@ -14,7 +14,6 @@
     <!-- Force the ringing screen over the lock screen. -->
     <uses-permission android:name="android.permission.USE_FULL_SCREEN_INTENT" />
     <uses-permission android:name="android.permission.WAKE_LOCK" />
-    <uses-permission android:name="android.permission.DISABLE_KEYGUARD" />
 
     <!-- Foreground service keeps the process (and the alarm audio) alive
          from the moment AlarmReceiver fires until the user dismisses or

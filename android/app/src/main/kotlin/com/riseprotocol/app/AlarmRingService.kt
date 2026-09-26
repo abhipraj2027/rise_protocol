@@ -97,15 +97,17 @@ class AlarmRingService : Service() {
                 if (id != -1) {
                     val stored = AlarmScheduler.readAll(this).find { it.id == id }
                     val minutes = stored?.snoozeMinutes ?: SNOOZE_MINUTES
+                    val snoozeAt = System.currentTimeMillis() + minutes * 60_000L
                     AlarmScheduler.schedule(
                         this,
-                        AlarmScheduler.Trigger(
-                            id,
-                            System.currentTimeMillis() + minutes * 60_000L,
-                            intent?.getStringExtra(AlarmReceiver.EXTRA_LABEL) ?: "",
-                            intent?.getStringExtra(AlarmReceiver.EXTRA_MISSION) ?: "none",
-                            minutes,
-                        ),
+                        stored?.copy(triggerAtMillis = snoozeAt)
+                            ?: AlarmScheduler.Trigger(
+                                id,
+                                snoozeAt,
+                                intent?.getStringExtra(AlarmReceiver.EXTRA_LABEL) ?: "",
+                                intent?.getStringExtra(AlarmReceiver.EXTRA_MISSION) ?: "none",
+                                minutes,
+                            ),
                     )
                     AlarmLog.add(this, "snoozed from the notification (id=$id, ${minutes}m)")
                     Toast.makeText(this, "Snoozed - ringing again in $minutes min", Toast.LENGTH_LONG).show()

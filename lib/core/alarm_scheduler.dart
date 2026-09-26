@@ -27,6 +27,9 @@ class AlarmScheduler {
       label: alarm.label,
       missionType: alarm.missionType.name,
       snoozeMinutes: alarm.snoozeMinutes,
+      hour: alarm.hour,
+      minute: alarm.minute,
+      repeatDays: alarm.repeatDays.toList()..sort(),
     );
   }
 
@@ -74,6 +77,21 @@ class ScheduledAlarmActions {
       await _ref.read(alarmSchedulerProvider).cancel(alarm.id!);
     }
     await _ref.read(alarmListProvider.notifier).remove(alarm.id!);
+  }
+
+  /// One-time alarms switch themselves off after they ring. Native records
+  /// which ones fired; this turns them off in the list. It only updates the
+  /// database — it must not cancel anything natively, or it would kill a
+  /// snooze that is still pending.
+  Future<void> applyFiredOneShots() async {
+    final ids = await _ref.read(alarmBridgeProvider).takeFiredOneShots();
+    if (ids.isEmpty) return;
+    final alarms = await _ref.read(alarmListProvider.future);
+    for (final a in alarms) {
+      if (a.id != null && ids.contains(a.id) && !a.isRepeating && a.enabled) {
+        await _ref.read(alarmListProvider.notifier).save(a.copyWith(enabled: false));
+      }
+    }
   }
 
   Future<void> setEnabled(Alarm alarm, bool enabled) async {
