@@ -90,6 +90,10 @@ jobs:
           path: analyze.txt
           retention-days: 7
 
+      # Unit tests (alarm date math, storage round trip, display helpers).
+      - name: Test
+        run: flutter test
+
       # --split-per-abi emits one APK per CPU architecture (~17 MB for
       # arm64-v8a, which is every modern phone) instead of one ~48 MB fat
       # APK. A universal APK is also built for maximum-compatibility

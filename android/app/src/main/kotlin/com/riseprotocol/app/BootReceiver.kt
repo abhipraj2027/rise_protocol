@@ -34,6 +34,11 @@ class BootReceiver : BroadcastReceiver() {
         for (trigger in triggers) {
             if (trigger.triggerAtMillis > now) {
                 AlarmScheduler.schedule(context, trigger)
+            } else if (AlarmScheduler.isRepeating(trigger)) {
+                // The phone was off (or the app updated) across an occurrence:
+                // don't ring for the missed one, arm the next regular one.
+                val next = AlarmScheduler.nextOccurrence(trigger, now)
+                AlarmScheduler.schedule(context, trigger.copy(triggerAtMillis = next))
             }
         }
     }

@@ -29,6 +29,21 @@ class AlarmReceiver : BroadcastReceiver() {
         val label = intent.getStringExtra(EXTRA_LABEL) ?: ""
         val mission = intent.getStringExtra(EXTRA_MISSION) ?: "none"
 
+        // Arm what comes next BEFORE anything that can fail, so a repeating
+        // alarm keeps repeating even if starting the ring service is blocked.
+        try {
+            val stored = AlarmScheduler.readAll(context).find { it.id == id }
+            if (stored != null && AlarmScheduler.isRepeating(stored)) {
+                val next = AlarmScheduler.nextOccurrence(stored, System.currentTimeMillis())
+                AlarmScheduler.schedule(context, stored.copy(triggerAtMillis = next))
+                AlarmLog.add(context, "re-armed repeating alarm (id=$id) for its next occurrence")
+            } else if (stored != null) {
+                AlarmScheduler.markOneShotFired(context, id)
+            }
+        } catch (e: Exception) {
+            AlarmLog.add(context, "FAILED to re-arm alarm (id=$id): ${e.javaClass.simpleName}: ${e.message}")
+        }
+
         val serviceIntent = Intent(context, AlarmRingService::class.java).apply {
             action = AlarmRingService.ACTION_START_RINGING
             putExtra(EXTRA_ID, id)

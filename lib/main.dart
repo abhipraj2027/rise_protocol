@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'core/alarm_scheduler.dart';
 import 'core/app_prefs.dart';
 import 'core/theme/app_theme.dart';
 import 'data/alarm.dart';
@@ -111,6 +112,10 @@ class _HomeBootstrapState extends ConsumerState<_HomeBootstrap> {
   void initState() {
     super.initState();
     _onboardingComplete = ref.read(appPrefsProvider).isOnboardingComplete();
+    // Switch off one-time alarms that rang while the app was closed.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      ref.read(scheduledAlarmActionsProvider).applyFiredOneShots();
+    });
   }
 
   @override

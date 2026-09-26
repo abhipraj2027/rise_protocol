@@ -36,9 +36,21 @@ object AlarmMethodChannel {
                 val label = call.argument<String>("label") ?: ""
                 val mission = call.argument<String>("missionType") ?: "none"
                 val snooze = call.argument<Int>("snoozeMinutes") ?: 5
+                val hour = call.argument<Int>("hour") ?: -1
+                val minute = call.argument<Int>("minute") ?: 0
+                val days = (call.argument<List<Int>>("repeatDays") ?: emptyList()).toSet()
                 AlarmScheduler.schedule(
                     context,
-                    AlarmScheduler.Trigger(id, triggerAt, label, mission, snooze)
+                    AlarmScheduler.Trigger(
+                        id = id,
+                        triggerAtMillis = triggerAt,
+                        label = label,
+                        missionType = mission,
+                        snoozeMinutes = snooze,
+                        hour = hour,
+                        minute = minute,
+                        repeatDays = days
+                    )
                 )
                 result.success(null)
             }
@@ -130,13 +142,17 @@ object AlarmMethodChannel {
                 val existing = AlarmScheduler.readAll(context).find { it.id == id }
                 // Dart passes null to mean "use this alarm's own snooze length".
                 val minutes = call.argument<Int>("snoozeMinutes") ?: existing?.snoozeMinutes ?: 5
-                val newTrigger = AlarmScheduler.Trigger(
-                    id = id,
-                    triggerAtMillis = System.currentTimeMillis() + minutes * 60_000L,
-                    label = existing?.label ?: "",
-                    missionType = existing?.missionType ?: "math",
-                    snoozeMinutes = existing?.snoozeMinutes ?: minutes
-                )
+                val snoozeAt = System.currentTimeMillis() + minutes * 60_000L
+                // copy() keeps the repeat rule, so the alarm still re-arms its
+                // next regular occurrence when the snooze fires.
+                val newTrigger = existing?.copy(triggerAtMillis = snoozeAt)
+                    ?: AlarmScheduler.Trigger(
+                        id = id,
+                        triggerAtMillis = snoozeAt,
+                        label = "",
+                        missionType = "math",
+                        snoozeMinutes = minutes
+                    )
                 AlarmLog.add(context, "snooze requested from the ringing screen (id=$id, ${minutes}m)")
                 AlarmScheduler.schedule(context, newTrigger)
                 Toast.makeText(context, "Snoozed — ringing again in $minutes min", Toast.LENGTH_LONG).show()
@@ -148,6 +164,10 @@ object AlarmMethodChannel {
             "muteRinging" -> {
                 AlarmRingService.mute(context, call.argument<Int>("seconds") ?: 15)
                 result.success(null)
+            }
+
+            "takeFiredOneShots" -> {
+                result.success(AlarmScheduler.takeFiredOneShots(context))
             }
 
             "getAlarmLog" -> {

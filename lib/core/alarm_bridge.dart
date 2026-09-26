@@ -20,6 +20,9 @@ abstract interface class AlarmBridge {
     required String label,
     required String missionType,
     required int snoozeMinutes,
+    required int hour,
+    required int minute,
+    required List<int> repeatDays,
   });
 
   Future<void> cancel(int alarmId);
@@ -68,6 +71,11 @@ abstract interface class AlarmBridge {
   Future<List<String>> getAlarmLog();
 
   Future<void> clearAlarmLog();
+
+  /// Ids of one-time alarms that have rung since the app last checked (and
+  /// clears the list). Native can't touch the alarm database, so the app
+  /// switches those alarms off in the UI when it next runs.
+  Future<List<int>> takeFiredOneShots();
 }
 
 class PlatformAlarmBridge implements AlarmBridge {
@@ -82,6 +90,9 @@ class PlatformAlarmBridge implements AlarmBridge {
     required String label,
     required String missionType,
     required int snoozeMinutes,
+    required int hour,
+    required int minute,
+    required List<int> repeatDays,
   }) async {
     await _channel.invokeMethod('scheduleAlarm', {
       'id': alarmId,
@@ -89,6 +100,9 @@ class PlatformAlarmBridge implements AlarmBridge {
       'label': label,
       'missionType': missionType,
       'snoozeMinutes': snoozeMinutes,
+      'hour': hour,
+      'minute': minute,
+      'repeatDays': repeatDays,
     });
   }
 
@@ -164,6 +178,12 @@ class PlatformAlarmBridge implements AlarmBridge {
   Future<void> clearAlarmLog() async {
     await _channel.invokeMethod('clearAlarmLog');
   }
+
+  @override
+  Future<List<int>> takeFiredOneShots() async {
+    final result = await _channel.invokeListMethod<int>('takeFiredOneShots');
+    return result ?? const [];
+  }
 }
 
 /// No-op bridge for the web UI preview: scheduling does nothing, and the
@@ -178,6 +198,9 @@ class FakeAlarmBridge implements AlarmBridge {
     required String label,
     required String missionType,
     required int snoozeMinutes,
+    required int hour,
+    required int minute,
+    required List<int> repeatDays,
   }) async {}
 
   @override
@@ -219,6 +242,9 @@ class FakeAlarmBridge implements AlarmBridge {
 
   @override
   Future<void> clearAlarmLog() async {}
+
+  @override
+  Future<List<int>> takeFiredOneShots() async => const [];
 }
 
 final alarmBridgeProvider = Provider<AlarmBridge>(
