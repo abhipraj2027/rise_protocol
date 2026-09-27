@@ -107,6 +107,8 @@ class PlatformAlarmBridge implements AlarmBridge {
       'hour': hour,
       'minute': minute,
       'repeatDays': repeatDays,
+      'qnaQuestion': qnaQuestion,
+      'qnaAnswer': qnaAnswer,
     });
   }
 
@@ -164,8 +166,6 @@ class PlatformAlarmBridge implements AlarmBridge {
     await _channel.invokeMethod('snoozeRinging', {
       'id': alarmId,
       'snoozeMinutes': snoozeMinutes,
-      'qnaQuestion': qnaQuestion,
-      'qnaAnswer': qnaAnswer,
     });
   }
 
