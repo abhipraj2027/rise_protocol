@@ -11,6 +11,7 @@ import '../../core/ui/gap.dart';
 import '../../core/ui/primary_button.dart';
 import '../../data/alarm.dart';
 import 'missions/math_mission.dart';
+import 'missions/qna_mission.dart';
 
 /// Full-screen ringing UI. Launched two ways:
 ///  1. As `/ringing` inside the normal app (e.g. a manual "test alarm" button).
@@ -28,11 +29,16 @@ class RingingScreen extends ConsumerStatefulWidget {
     required this.alarmId,
     required this.label,
     required this.missionType,
+    this.qnaQuestion = '',
+    this.qnaAnswer = '',
   });
 
   final int alarmId;
   final String label;
   final MissionType missionType;
+  /// Only used when [missionType] is [MissionType.qna].
+  final String qnaQuestion;
+  final String qnaAnswer;
 
   @override
   ConsumerState<RingingScreen> createState() => _RingingScreenState();
@@ -132,6 +138,8 @@ class _RingingScreenState extends ConsumerState<RingingScreen> {
                         showMission
                             ? _MissionArea(
                                 missionType: widget.missionType,
+                                qnaQuestion: widget.qnaQuestion,
+                                qnaAnswer: widget.qnaAnswer,
                                 onComplete: _onMissionComplete,
                                 onInteraction: _quiet,
                               )
@@ -242,11 +250,15 @@ class _MissionArea extends StatelessWidget {
     required this.missionType,
     required this.onComplete,
     required this.onInteraction,
+    this.qnaQuestion = '',
+    this.qnaAnswer = '',
   });
 
   final MissionType missionType;
   final VoidCallback onComplete;
   final VoidCallback onInteraction;
+  final String qnaQuestion;
+  final String qnaAnswer;
 
   @override
   Widget build(BuildContext context) {
@@ -254,6 +266,13 @@ class _MissionArea extends StatelessWidget {
       case MissionType.math:
         return MathMissionView(
           difficulty: 1,
+          onComplete: onComplete,
+          onInteraction: onInteraction,
+        );
+      case MissionType.qna:
+        return QnaMissionView(
+          question: qnaQuestion,
+          answer: qnaAnswer,
           onComplete: onComplete,
           onInteraction: onInteraction,
         );

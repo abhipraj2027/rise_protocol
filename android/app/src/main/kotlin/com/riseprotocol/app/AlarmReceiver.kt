@@ -17,6 +17,8 @@ class AlarmReceiver : BroadcastReceiver() {
         const val EXTRA_ID = "extra_id"
         const val EXTRA_LABEL = "extra_label"
         const val EXTRA_MISSION = "extra_mission"
+        const val EXTRA_QNA_QUESTION = "extra_qna_question"
+        const val EXTRA_QNA_ANSWER = "extra_qna_answer"
     }
 
     override fun onReceive(context: Context, intent: Intent) {
@@ -28,6 +30,8 @@ class AlarmReceiver : BroadcastReceiver() {
         }
         val label = intent.getStringExtra(EXTRA_LABEL) ?: ""
         val mission = intent.getStringExtra(EXTRA_MISSION) ?: "none"
+        val qnaQuestion = intent.getStringExtra(EXTRA_QNA_QUESTION) ?: ""
+        val qnaAnswer = intent.getStringExtra(EXTRA_QNA_ANSWER) ?: ""
 
         // Arm what comes next BEFORE anything that can fail, so a repeating
         // alarm keeps repeating even if starting the ring service is blocked.
@@ -49,6 +53,8 @@ class AlarmReceiver : BroadcastReceiver() {
             putExtra(EXTRA_ID, id)
             putExtra(EXTRA_LABEL, label)
             putExtra(EXTRA_MISSION, mission)
+            putExtra(EXTRA_QNA_QUESTION, qnaQuestion)
+            putExtra(EXTRA_QNA_ANSWER, qnaAnswer)
         }
 
         try {

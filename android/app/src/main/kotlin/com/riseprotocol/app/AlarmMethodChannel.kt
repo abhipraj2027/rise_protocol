@@ -39,6 +39,8 @@ object AlarmMethodChannel {
                 val hour = call.argument<Int>("hour") ?: -1
                 val minute = call.argument<Int>("minute") ?: 0
                 val days = (call.argument<List<Int>>("repeatDays") ?: emptyList()).toSet()
+                val qnaQuestion = call.argument<String>("qnaQuestion") ?: ""
+                val qnaAnswer = call.argument<String>("qnaAnswer") ?: ""
                 AlarmScheduler.schedule(
                     context,
                     AlarmScheduler.Trigger(
@@ -49,7 +51,9 @@ object AlarmMethodChannel {
                         snoozeMinutes = snooze,
                         hour = hour,
                         minute = minute,
-                        repeatDays = days
+                        repeatDays = days,
+                        qnaQuestion = qnaQuestion,
+                        qnaAnswer = qnaAnswer
                     )
                 )
                 result.success(null)

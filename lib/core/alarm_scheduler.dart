@@ -30,6 +30,8 @@ class AlarmScheduler {
       hour: alarm.hour,
       minute: alarm.minute,
       repeatDays: alarm.repeatDays.toList()..sort(),
+      qnaQuestion: alarm.qnaQuestion,
+      qnaAnswer: alarm.qnaAnswer,
     );
   }
 

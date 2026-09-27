@@ -54,11 +54,19 @@ class RiseProtocolApp extends ConsumerWidget {
       final id = int.tryParse(uri.queryParameters['id'] ?? '') ?? -1;
       final mission = MissionType.fromName(uri.queryParameters['mission'] ?? 'none');
       final label = uri.queryParameters['label'] ?? '';
+      final question = uri.queryParameters['question'] ?? '';
+      final answer = uri.queryParameters['answer'] ?? '';
       return MaterialPageRoute(
         settings: settings,
         builder: (_) => Theme(
           data: AppTheme.ringing(),
-          child: RingingScreen(alarmId: id, label: label, missionType: mission),
+          child: RingingScreen(
+            alarmId: id,
+            label: label,
+            missionType: mission,
+            qnaQuestion: question,
+            qnaAnswer: answer,
+          ),
         ),
       );
     }

@@ -128,20 +128,28 @@ class AlarmRingService : Service() {
                 val id = intent?.getIntExtra(AlarmReceiver.EXTRA_ID, -1) ?: -1
                 val label = intent?.getStringExtra(AlarmReceiver.EXTRA_LABEL) ?: ""
                 val mission = intent?.getStringExtra(AlarmReceiver.EXTRA_MISSION) ?: "none"
-                startRinging(id, label, mission)
+                val qnaQuestion = intent?.getStringExtra(AlarmReceiver.EXTRA_QNA_QUESTION) ?: ""
+                val qnaAnswer = intent?.getStringExtra(AlarmReceiver.EXTRA_QNA_ANSWER) ?: ""
+                startRinging(id, label, mission, qnaQuestion, qnaAnswer)
                 return START_STICKY
             }
         }
     }
 
-    private fun startRinging(id: Int, label: String, mission: String) {
+    private fun startRinging(
+        id: Int,
+        label: String,
+        mission: String,
+        qnaQuestion: String = "",
+        qnaAnswer: String = "",
+    ) {
         // Try the direct launch FIRST. Android grants a short background-
         // activity-launch window when an alarm-clock broadcast is delivered;
         // doing the slower setup below (notification, MediaPlayer, vibrator)
         // before this call can burn that window and make it fail.
         AlarmLog.add(this, "ring service started (id=$id, mission=$mission)")
         try {
-            startActivity(ringingActivityIntent(id, label, mission))
+            startActivity(ringingActivityIntent(id, label, mission, qnaQuestion, qnaAnswer))
             AlarmLog.add(this, "direct screen launch: OK")
         } catch (e: Exception) {
             // Expected when the window has lapsed or the OEM blocks it; the
@@ -151,7 +159,7 @@ class AlarmRingService : Service() {
 
         acquireWakeLock()
         createChannelIfNeeded()
-        startForeground(NOTIFICATION_ID, buildNotification(id, label, mission))
+        startForeground(NOTIFICATION_ID, buildNotification(id, label, mission, qnaQuestion, qnaAnswer))
         val fsiOk = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
             (getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager).canUseFullScreenIntent()
         } else {
@@ -235,8 +243,14 @@ class AlarmRingService : Service() {
         }
     }
 
-    private fun buildNotification(id: Int, label: String, mission: String): Notification {
-        val open = ringingActivityPendingIntent(id, label, mission)
+    private fun buildNotification(
+        id: Int,
+        label: String,
+        mission: String,
+        qnaQuestion: String = "",
+        qnaAnswer: String = "",
+    ): Notification {
+        val open = ringingActivityPendingIntent(id, label, mission, qnaQuestion, qnaAnswer)
         return NotificationCompat.Builder(this, CHANNEL_ID)
             .setSmallIcon(android.R.drawable.ic_lock_idle_alarm)
             .setContentTitle(if (label.isNotEmpty()) label else "Alarm")
@@ -279,7 +293,13 @@ class AlarmRingService : Service() {
         )
     }
 
-    private fun ringingActivityIntent(id: Int, label: String, mission: String): Intent {
+    private fun ringingActivityIntent(
+        id: Int,
+        label: String,
+        mission: String,
+        qnaQuestion: String = "",
+        qnaAnswer: String = "",
+    ): Intent {
         return Intent(this, AlarmRingingActivity::class.java).apply {
             addFlags(
                 Intent.FLAG_ACTIVITY_NEW_TASK or
@@ -289,14 +309,22 @@ class AlarmRingService : Service() {
             putExtra(AlarmReceiver.EXTRA_ID, id)
             putExtra(AlarmReceiver.EXTRA_LABEL, label)
             putExtra(AlarmReceiver.EXTRA_MISSION, mission)
+            putExtra(AlarmReceiver.EXTRA_QNA_QUESTION, qnaQuestion)
+            putExtra(AlarmReceiver.EXTRA_QNA_ANSWER, qnaAnswer)
         }
     }
 
-    private fun ringingActivityPendingIntent(id: Int, label: String, mission: String): PendingIntent {
+    private fun ringingActivityPendingIntent(
+        id: Int,
+        label: String,
+        mission: String,
+        qnaQuestion: String = "",
+        qnaAnswer: String = "",
+    ): PendingIntent {
         return PendingIntent.getActivity(
             this,
             id,
-            ringingActivityIntent(id, label, mission),
+            ringingActivityIntent(id, label, mission, qnaQuestion, qnaAnswer),
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
         )
     }

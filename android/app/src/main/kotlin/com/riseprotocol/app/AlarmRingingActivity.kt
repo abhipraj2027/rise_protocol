@@ -57,11 +57,15 @@ class AlarmRingingActivity : FlutterActivity() {
         val id = intent.getIntExtra(AlarmReceiver.EXTRA_ID, -1)
         val label = intent.getStringExtra(AlarmReceiver.EXTRA_LABEL) ?: ""
         val mission = intent.getStringExtra(AlarmReceiver.EXTRA_MISSION) ?: "none"
+        val qnaQuestion = intent.getStringExtra(AlarmReceiver.EXTRA_QNA_QUESTION) ?: ""
+        val qnaAnswer = intent.getStringExtra(AlarmReceiver.EXTRA_QNA_ANSWER) ?: ""
         val uri = Uri.Builder()
             .path("/ringing")
             .appendQueryParameter("id", id.toString())
             .appendQueryParameter("label", label)
             .appendQueryParameter("mission", mission)
+            .appendQueryParameter("question", qnaQuestion)
+            .appendQueryParameter("answer", qnaAnswer)
             .build()
         return uri.toString()
     }
