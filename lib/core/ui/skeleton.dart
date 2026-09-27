@@ -66,19 +66,15 @@ class _SkeletonBoxState extends State<SkeletonBox>
 }
 
 /// The alarm list's loading state: a hero-shaped block plus a few tile rows.
+/// A plain (non-scrolling) column — the caller places it inside whatever
+/// scrollable it needs, sliver or otherwise.
 class AlarmListSkeleton extends StatelessWidget {
   const AlarmListSkeleton({super.key});
 
   @override
   Widget build(BuildContext context) {
-    return ListView(
-      padding: const EdgeInsets.fromLTRB(
-        AppTokens.space16,
-        AppTokens.space12,
-        AppTokens.space16,
-        AppTokens.space16,
-      ),
-      children: const [
+    return const Column(
+      children: [
         SkeletonBox(height: 132, radius: AppTokens.radiusXl),
         SizedBox(height: AppTokens.space24),
         SkeletonBox(height: 96, radius: AppTokens.radiusLg),

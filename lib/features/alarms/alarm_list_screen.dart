@@ -24,61 +24,84 @@ class AlarmListScreen extends ConsumerWidget {
     final alarmsAsync = ref.watch(alarmListProvider);
     final actions = ref.read(scheduledAlarmActionsProvider);
 
+    final t = context.tokens;
+
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Rise Protocol'),
-        actions: [
-          if (kDebugMode)
-            IconButton(
-              tooltip: 'Component gallery',
-              icon: const Icon(Icons.palette_outlined),
-              onPressed: () => Navigator.of(context).pushNamed('/gallery'),
-            ),
-          IconButton(
-            tooltip: 'Permissions',
-            icon: const Icon(Icons.shield_outlined),
-            onPressed: () => Navigator.of(context).push(
-              MaterialPageRoute(
-                builder: (_) => const PermissionOnboardingScreen(isReview: true),
+      body: CustomScrollView(
+        slivers: [
+          SliverAppBar.large(
+            title: const Text('Rise Protocol'),
+            titleTextStyle: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                  fontWeight: FontWeight.w700,
+                  color: t.textPrimary,
+                ),
+            backgroundColor: t.surface0,
+            surfaceTintColor: Colors.transparent,
+            foregroundColor: t.textPrimary,
+            elevation: 0,
+            scrolledUnderElevation: 0,
+            pinned: true,
+            actions: [
+              if (kDebugMode)
+                IconButton(
+                  tooltip: 'Component gallery',
+                  icon: const Icon(Icons.palette_outlined),
+                  onPressed: () => Navigator.of(context).pushNamed('/gallery'),
+                ),
+              IconButton(
+                tooltip: 'Permissions',
+                icon: const Icon(Icons.shield_outlined),
+                onPressed: () => Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (_) =>
+                        const PermissionOnboardingScreen(isReview: true),
+                  ),
+                ),
               ),
-            ),
+              const SizedBox(width: AppTokens.space4),
+            ],
           ),
-        ],
-      ),
-      body: alarmsAsync.when(
-        loading: () => const AlarmListSkeleton(),
-        error: (err, _) => _ErrorState(message: '$err'),
-        data: (alarms) {
-          final sorted = [...alarms]..sort(_byTimeOfDay);
-          return ListView(
+          SliverPadding(
             padding: const EdgeInsets.fromLTRB(
               AppTokens.space16,
-              AppTokens.space12,
+              AppTokens.space8,
               AppTokens.space16,
               AppTokens.space56 + AppTokens.space40,
             ),
-            children: [
-              NextAlarmHero(alarms: sorted),
-              const Gap(AppTokens.space24),
-              if (sorted.isEmpty)
-                const _EmptyState()
-              else
-                for (final (i, alarm) in sorted.indexed) ...[
-                  StaggerIn(
-                    key: ValueKey('stagger-${alarm.id}'),
-                    index: i,
-                    child: _DismissibleAlarm(
-                      alarm: alarm,
-                      onTap: () => _openEditor(context, alarm.id),
-                      onToggle: (v) => actions.setEnabled(alarm, v),
-                      onDismissed: () => _deleteWithUndo(context, ref, alarm),
-                    ),
-                  ),
-                  const Gap(AppTokens.space12),
-                ],
-            ],
-          );
-        },
+            sliver: alarmsAsync.when(
+              loading: () =>
+                  const SliverToBoxAdapter(child: AlarmListSkeleton()),
+              error: (err, _) =>
+                  SliverToBoxAdapter(child: _ErrorState(message: '$err')),
+              data: (alarms) {
+                final sorted = [...alarms]..sort(_byTimeOfDay);
+                return SliverList.list(
+                  children: [
+                    NextAlarmHero(alarms: sorted),
+                    const Gap(AppTokens.space24),
+                    if (sorted.isEmpty)
+                      const _EmptyState()
+                    else
+                      for (final (i, alarm) in sorted.indexed) ...[
+                        StaggerIn(
+                          key: ValueKey('stagger-${alarm.id}'),
+                          index: i,
+                          child: _DismissibleAlarm(
+                            alarm: alarm,
+                            onTap: () => _openEditor(context, alarm.id),
+                            onToggle: (v) => actions.setEnabled(alarm, v),
+                            onDismissed: () =>
+                                _deleteWithUndo(context, ref, alarm),
+                          ),
+                        ),
+                        const Gap(AppTokens.space12),
+                      ],
+                  ],
+                );
+              },
+            ),
+          ),
+        ],
       ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => _openEditor(context, null),
