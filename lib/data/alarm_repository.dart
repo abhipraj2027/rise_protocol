@@ -30,7 +30,7 @@ class SqfliteAlarmRepository implements AlarmRepository {
     final path = p.join(dbPath, _dbName);
     _db = await openDatabase(
       path,
-      version: 1,
+      version: 2,
       onCreate: (db, version) async {
         await db.execute('''
           CREATE TABLE $_table (
@@ -44,9 +44,22 @@ class SqfliteAlarmRepository implements AlarmRepository {
             mission_difficulty INTEGER NOT NULL DEFAULT 1,
             sound_asset TEXT NOT NULL DEFAULT 'default_alarm',
             snooze_minutes INTEGER NOT NULL DEFAULT 5,
-            max_snoozes INTEGER NOT NULL DEFAULT 3
+            max_snoozes INTEGER NOT NULL DEFAULT 3,
+            qna_question TEXT NOT NULL DEFAULT '',
+            qna_answer TEXT NOT NULL DEFAULT ''
           )
         ''');
+      },
+      onUpgrade: (db, oldVersion, newVersion) async {
+        // v1 -> v2: the custom question/answer mission.
+        if (oldVersion < 2) {
+          await db.execute(
+            "ALTER TABLE $_table ADD COLUMN qna_question TEXT NOT NULL DEFAULT ''",
+          );
+          await db.execute(
+            "ALTER TABLE $_table ADD COLUMN qna_answer TEXT NOT NULL DEFAULT ''",
+          );
+        }
       },
     );
     return _db!;

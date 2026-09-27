@@ -10,7 +10,8 @@ enum MissionType {
   math,
   shake,
   photo,
-  barcode;
+  barcode,
+  qna;
 
   static MissionType fromName(String name) {
     return MissionType.values.firstWhere(
@@ -33,11 +34,15 @@ extension MissionTypeX on MissionType {
         return 'Photo match';
       case MissionType.barcode:
         return 'Scan barcode';
+      case MissionType.qna:
+        return 'Custom question';
     }
   }
 
   bool get isImplemented =>
-      this == MissionType.none || this == MissionType.math;
+      this == MissionType.none ||
+      this == MissionType.math ||
+      this == MissionType.qna;
 }
 
 /// The days of the week an alarm repeats on. Empty set = one-off alarm.
@@ -56,6 +61,10 @@ class Alarm {
   final String soundAsset;
   final int snoozeMinutes;
   final int maxSnoozes;
+  /// Only meaningful when [missionType] is [MissionType.qna]: the
+  /// user-written challenge and the answer that clears it.
+  final String qnaQuestion;
+  final String qnaAnswer;
 
   const Alarm({
     this.id,
@@ -69,6 +78,8 @@ class Alarm {
     this.soundAsset = 'default_alarm',
     this.snoozeMinutes = 5,
     this.maxSnoozes = 3,
+    this.qnaQuestion = '',
+    this.qnaAnswer = '',
   });
 
   bool get isRepeating => repeatDays.isNotEmpty;
@@ -85,6 +96,8 @@ class Alarm {
     String? soundAsset,
     int? snoozeMinutes,
     int? maxSnoozes,
+    String? qnaQuestion,
+    String? qnaAnswer,
   }) {
     return Alarm(
       id: id ?? this.id,
@@ -98,6 +111,8 @@ class Alarm {
       soundAsset: soundAsset ?? this.soundAsset,
       snoozeMinutes: snoozeMinutes ?? this.snoozeMinutes,
       maxSnoozes: maxSnoozes ?? this.maxSnoozes,
+      qnaQuestion: qnaQuestion ?? this.qnaQuestion,
+      qnaAnswer: qnaAnswer ?? this.qnaAnswer,
     );
   }
 
@@ -139,6 +154,8 @@ class Alarm {
       'sound_asset': soundAsset,
       'snooze_minutes': snoozeMinutes,
       'max_snoozes': maxSnoozes,
+      'qna_question': qnaQuestion,
+      'qna_answer': qnaAnswer,
     };
   }
 
@@ -158,6 +175,8 @@ class Alarm {
       soundAsset: map['sound_asset'] as String? ?? 'default_alarm',
       snoozeMinutes: map['snooze_minutes'] as int? ?? 5,
       maxSnoozes: map['max_snoozes'] as int? ?? 3,
+      qnaQuestion: map['qna_question'] as String? ?? '',
+      qnaAnswer: map['qna_answer'] as String? ?? '',
     );
   }
 }

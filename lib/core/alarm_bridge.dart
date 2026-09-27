@@ -23,6 +23,8 @@ abstract interface class AlarmBridge {
     required int hour,
     required int minute,
     required List<int> repeatDays,
+    required String qnaQuestion,
+    required String qnaAnswer,
   });
 
   Future<void> cancel(int alarmId);
@@ -93,6 +95,8 @@ class PlatformAlarmBridge implements AlarmBridge {
     required int hour,
     required int minute,
     required List<int> repeatDays,
+    required String qnaQuestion,
+    required String qnaAnswer,
   }) async {
     await _channel.invokeMethod('scheduleAlarm', {
       'id': alarmId,
@@ -160,6 +164,8 @@ class PlatformAlarmBridge implements AlarmBridge {
     await _channel.invokeMethod('snoozeRinging', {
       'id': alarmId,
       'snoozeMinutes': snoozeMinutes,
+      'qnaQuestion': qnaQuestion,
+      'qnaAnswer': qnaAnswer,
     });
   }
 
@@ -201,6 +207,8 @@ class FakeAlarmBridge implements AlarmBridge {
     required int hour,
     required int minute,
     required List<int> repeatDays,
+    required String qnaQuestion,
+    required String qnaAnswer,
   }) async {}
 
   @override

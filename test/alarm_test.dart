@@ -107,6 +107,23 @@ void main() {
       expect(copy.repeatDays, {1, 3, 5});
       expect(copy.missionType, MissionType.none);
       expect(copy.snoozeMinutes, 9);
+      expect(copy.qnaQuestion, '');
+      expect(copy.qnaAnswer, '');
+    });
+
+    test('a custom question/answer mission keeps its text', () {
+      const original = Alarm(
+        hour: 7,
+        minute: 0,
+        missionType: MissionType.qna,
+        qnaQuestion: 'What time do the kids leave?',
+        qnaAnswer: '7:45',
+      );
+      final copy = Alarm.fromMap(original.toMap());
+      expect(copy.missionType, MissionType.qna);
+      expect(copy.qnaQuestion, 'What time do the kids leave?');
+      expect(copy.qnaAnswer, '7:45');
+      expect(copy.missionType.isImplemented, true);
     });
 
     test('an unknown mission name falls back to none', () {

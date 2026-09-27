@@ -39,7 +39,10 @@ object AlarmScheduler {
          *  rule is unknown (an alarm saved by an older build). */
         val hour: Int = -1,
         val minute: Int = 0,
-        val repeatDays: Set<Int> = emptySet()
+        val repeatDays: Set<Int> = emptySet(),
+        /** Only used when missionType == "qna": the user's own challenge. */
+        val qnaQuestion: String = "",
+        val qnaAnswer: String = ""
     )
 
     fun isRepeating(t: Trigger): Boolean = t.hour >= 0 && t.repeatDays.isNotEmpty()
@@ -192,7 +195,9 @@ object AlarmScheduler {
                     snoozeMinutes = obj.optInt("snoozeMinutes", 5),
                     hour = obj.optInt("hour", -1),
                     minute = obj.optInt("minute", 0),
-                    repeatDays = days
+                    repeatDays = days,
+                    qnaQuestion = obj.optString("qnaQuestion", ""),
+                    qnaAnswer = obj.optString("qnaAnswer", "")
                 )
             )
         }
@@ -213,6 +218,8 @@ object AlarmScheduler {
             val days = JSONArray()
             for (d in t.repeatDays.sorted()) days.put(d)
             obj.put("repeatDays", days)
+            obj.put("qnaQuestion", t.qnaQuestion)
+            obj.put("qnaAnswer", t.qnaAnswer)
             array.put(obj)
         }
         prefs(context).edit().putString(KEY_TRIGGERS, array.toString()).apply()

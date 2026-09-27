@@ -27,6 +27,8 @@ class EditAlarmScreen extends ConsumerStatefulWidget {
 class _EditAlarmScreenState extends ConsumerState<EditAlarmScreen> {
   late TimeOfDay _time;
   late TextEditingController _labelController;
+  late TextEditingController _qnaQuestionController;
+  late TextEditingController _qnaAnswerController;
   late Set<int> _repeatDays;
   late MissionType _missionType;
   late int _snoozeMinutes;
@@ -38,6 +40,8 @@ class _EditAlarmScreenState extends ConsumerState<EditAlarmScreen> {
     super.initState();
     _time = TimeOfDay.now().replacing(minute: 0);
     _labelController = TextEditingController();
+    _qnaQuestionController = TextEditingController();
+    _qnaAnswerController = TextEditingController();
     _repeatDays = {};
     _missionType = MissionType.math;
     _snoozeMinutes = 5;
@@ -49,6 +53,8 @@ class _EditAlarmScreenState extends ConsumerState<EditAlarmScreen> {
     _existing = alarm;
     _time = TimeOfDay(hour: alarm.hour, minute: alarm.minute);
     _labelController.text = alarm.label;
+    _qnaQuestionController.text = alarm.qnaQuestion;
+    _qnaAnswerController.text = alarm.qnaAnswer;
     _repeatDays = {...alarm.repeatDays};
     _missionType = alarm.missionType;
     _snoozeMinutes = alarm.snoozeMinutes;
@@ -58,8 +64,17 @@ class _EditAlarmScreenState extends ConsumerState<EditAlarmScreen> {
   @override
   void dispose() {
     _labelController.dispose();
+    _qnaQuestionController.dispose();
+    _qnaAnswerController.dispose();
     super.dispose();
   }
+
+  /// A custom-question mission needs both fields filled in to make sense —
+  /// blocks Save rather than shipping a mission with no way to clear it.
+  bool get _canSave =>
+      _missionType != MissionType.qna ||
+      (_qnaQuestionController.text.trim().isNotEmpty &&
+          _qnaAnswerController.text.trim().isNotEmpty);
 
   Alarm get _draft => (_existing ?? const Alarm(hour: 0, minute: 0)).copyWith(
         hour: _time.hour,
@@ -68,6 +83,8 @@ class _EditAlarmScreenState extends ConsumerState<EditAlarmScreen> {
         repeatDays: _repeatDays,
         missionType: _missionType,
         snoozeMinutes: _snoozeMinutes,
+        qnaQuestion: _qnaQuestionController.text.trim(),
+        qnaAnswer: _qnaAnswerController.text.trim(),
         enabled: true,
       );
 
@@ -180,6 +197,41 @@ class _EditAlarmScreenState extends ConsumerState<EditAlarmScreen> {
                   ),
                   const Gap(AppTokens.space8),
                 ],
+                if (_missionType == MissionType.qna) ...[
+                  const Gap(AppTokens.space4),
+                  AppCard(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Write your own challenge — you\'ll have to type '
+                          'the answer back to dismiss the alarm.',
+                          style: Theme.of(context).textTheme.bodySmall,
+                        ),
+                        const Gap(AppTokens.space12),
+                        TextField(
+                          controller: _qnaQuestionController,
+                          textCapitalization: TextCapitalization.sentences,
+                          onChanged: (_) => setState(() {}),
+                          decoration: const InputDecoration(
+                            labelText: 'Question',
+                            hintText: 'e.g. What time is the school run?',
+                          ),
+                        ),
+                        const Gap(AppTokens.space12),
+                        TextField(
+                          controller: _qnaAnswerController,
+                          textCapitalization: TextCapitalization.sentences,
+                          onChanged: (_) => setState(() {}),
+                          decoration: const InputDecoration(
+                            labelText: 'Answer',
+                            hintText: 'e.g. 7:45',
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
                 const Gap(AppTokens.space24),
 
                 const SectionHeader('Snooze length'),
@@ -209,6 +261,7 @@ class _EditAlarmScreenState extends ConsumerState<EditAlarmScreen> {
           _SaveBar(
             label: _existing == null ? 'Add alarm' : 'Save changes',
             onSave: _save,
+            enabled: _canSave,
           ),
         ],
       ),
@@ -393,6 +446,7 @@ class _MissionOption extends StatelessWidget {
         MissionType.shake => Icons.vibration,
         MissionType.photo => Icons.photo_camera_outlined,
         MissionType.barcode => Icons.qr_code_scanner,
+        MissionType.qna => Icons.quiz_outlined,
       };
 }
 
@@ -489,10 +543,15 @@ class _RoundIconButton extends StatelessWidget {
 }
 
 class _SaveBar extends StatelessWidget {
-  const _SaveBar({required this.label, required this.onSave});
+  const _SaveBar({
+    required this.label,
+    required this.onSave,
+    this.enabled = true,
+  });
 
   final String label;
   final Future<void> Function() onSave;
+  final bool enabled;
 
   @override
   Widget build(BuildContext context) {
@@ -509,7 +568,10 @@ class _SaveBar extends StatelessWidget {
           top: false,
           child: Padding(
             padding: const EdgeInsets.all(AppTokens.space16),
-            child: PrimaryButton(label: label, onPressed: () => onSave()),
+            child: PrimaryButton(
+              label: label,
+              onPressed: enabled ? () => onSave() : null,
+            ),
           ),
         ),
       ),
