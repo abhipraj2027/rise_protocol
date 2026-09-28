@@ -13,6 +13,7 @@ import '../../core/ui/weekday_selector.dart';
 import '../../data/alarm.dart';
 import '../../data/alarm_repository.dart';
 import 'alarm_formatting.dart';
+import 'mission_icons.dart';
 
 /// Create screen when [alarmId] is null, edit screen otherwise.
 class EditAlarmScreen extends ConsumerStatefulWidget {
@@ -422,7 +423,7 @@ class _MissionOption extends StatelessWidget {
         opacity: enabled ? 1.0 : 0.55,
         child: Row(
           children: [
-            Icon(_iconFor(mission), color: selected ? t.brand : t.textSecondary),
+            Icon(mission.icon, color: selected ? t.brand : t.textSecondary),
             const Gap.w(AppTokens.space12),
             Expanded(
               child: Text(
@@ -439,15 +440,6 @@ class _MissionOption extends StatelessWidget {
       ),
     );
   }
-
-  static IconData _iconFor(MissionType m) => switch (m) {
-        MissionType.none => Icons.touch_app_outlined,
-        MissionType.math => Icons.calculate_outlined,
-        MissionType.shake => Icons.vibration,
-        MissionType.photo => Icons.photo_camera_outlined,
-        MissionType.barcode => Icons.qr_code_scanner,
-        MissionType.qna => Icons.quiz_outlined,
-      };
 }
 
 class _Tag extends StatelessWidget {

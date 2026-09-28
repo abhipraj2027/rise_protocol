@@ -177,7 +177,12 @@ class _DismissibleAlarm extends StatelessWidget {
         ),
         child: Icon(Icons.delete_outline_rounded, color: t.danger),
       ),
-      child: AlarmTile(alarm: alarm, onTap: onTap, onToggle: onToggle),
+      child: AlarmTile(
+        alarm: alarm,
+        onTap: onTap,
+        onToggle: onToggle,
+        onDelete: onDismissed,
+      ),
     );
   }
 }
