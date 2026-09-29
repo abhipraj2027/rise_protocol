@@ -126,6 +126,8 @@ object AlarmScheduler {
             putExtra(AlarmReceiver.EXTRA_ID, trigger.id)
             putExtra(AlarmReceiver.EXTRA_LABEL, trigger.label)
             putExtra(AlarmReceiver.EXTRA_MISSION, trigger.missionType)
+            putExtra(AlarmReceiver.EXTRA_QNA_QUESTION, trigger.qnaQuestion)
+            putExtra(AlarmReceiver.EXTRA_QNA_ANSWER, trigger.qnaAnswer)
         }
         return PendingIntent.getBroadcast(
             context, trigger.id, intent,
