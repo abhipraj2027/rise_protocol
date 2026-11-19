@@ -36,6 +36,7 @@ class _EditAlarmScreenState extends ConsumerState<EditAlarmScreen> {
   final _labelController = TextEditingController();
   Set<int> _repeatDays = {};
   int _snoozeMinutes = 5;
+  int _maxSnoozes = 3;
 
   /// Holds the mission type, difficulty, problem count and Q&A as last set
   /// in the mission sheet. Only those fields of this alarm are read.
@@ -57,6 +58,7 @@ class _EditAlarmScreenState extends ConsumerState<EditAlarmScreen> {
     _labelController.text = alarm.label;
     _repeatDays = {...alarm.repeatDays};
     _snoozeMinutes = alarm.snoozeMinutes;
+    _maxSnoozes = alarm.maxSnoozes;
     _mission = alarm;
     _loaded = true;
   }
@@ -80,6 +82,7 @@ class _EditAlarmScreenState extends ConsumerState<EditAlarmScreen> {
         label: _labelController.text.trim(),
         repeatDays: _repeatDays,
         snoozeMinutes: _snoozeMinutes,
+        maxSnoozes: _maxSnoozes,
         missionType: _mission.missionType,
         missionDifficulty: _mission.missionDifficulty,
         missionCount: _mission.missionCount,
@@ -213,6 +216,20 @@ class _EditAlarmScreenState extends ConsumerState<EditAlarmScreen> {
                           max: 15,
                           unit: 'min',
                           onChanged: (v) => setState(() => _snoozeMinutes = v),
+                        ),
+                      ),
+                    ),
+                    SettingsRow(
+                      icon: Icons.block_rounded,
+                      title: 'Snooze limit',
+                      trailing: Align(
+                        alignment: Alignment.centerRight,
+                        child: _Stepper(
+                          value: _maxSnoozes,
+                          min: 0,
+                          max: 5,
+                          format: (v) => v == 0 ? 'Off' : '$v×',
+                          onChanged: (v) => setState(() => _maxSnoozes = v),
                         ),
                       ),
                     ),
@@ -446,7 +463,8 @@ class _Stepper extends StatelessWidget {
     required this.value,
     required this.min,
     required this.max,
-    required this.unit,
+    this.unit = '',
+    this.format,
     required this.onChanged,
   });
 
@@ -454,6 +472,9 @@ class _Stepper extends StatelessWidget {
   final int min;
   final int max;
   final String unit;
+
+  /// Overrides the default "$value $unit" label.
+  final String Function(int value)? format;
   final ValueChanged<int> onChanged;
 
   @override
@@ -469,7 +490,7 @@ class _Stepper extends StatelessWidget {
         SizedBox(
           width: 64,
           child: Text(
-            '$value $unit',
+            format?.call(value) ?? '$value $unit',
             textAlign: TextAlign.center,
             style: text.titleSmall,
           ),

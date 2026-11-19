@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math' show max;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -10,6 +11,7 @@ import '../../core/theme/app_tokens.dart';
 import '../../core/ui/clock_display.dart';
 import '../../core/ui/gap.dart';
 import '../../core/ui/primary_button.dart';
+import '../../core/wake_stats.dart';
 import '../../data/alarm.dart';
 import '../../data/alarm_repository.dart';
 import 'missions/math_mission.dart';
@@ -46,8 +48,26 @@ class RingingScreen extends ConsumerStatefulWidget {
   ConsumerState<RingingScreen> createState() => _RingingScreenState();
 }
 
-class _RingingScreenState extends ConsumerState<RingingScreen> {
+class _RingingScreenState extends ConsumerState<RingingScreen>
+    with SingleTickerProviderStateMixin {
+  /// How long one mute call silences the alarm natively (see [_quiet]).
+  static const _quietFor = Duration(seconds: 15);
+
   Timer? _clockTimer;
+  final DateTime _ringStartedAt = DateTime.now();
+
+  /// Drains over [_quietFor] from the last mute call — the bar that shows
+  /// when the sound is coming back.
+  late final AnimationController _quietBar =
+      AnimationController(vsync: this, duration: _quietFor);
+
+  /// Snoozes already used this ring; null until read.
+  int? _snoozesUsed;
+
+  /// Filled in once the cleared mission is recorded.
+  WakeSummary? _summary;
+  Timer? _autoFinish;
+  bool _finishing = false;
   DateTime _now = DateTime.now();
   bool _missionActive = false;
   bool _dismissed = false;
@@ -63,6 +83,7 @@ class _RingingScreenState extends ConsumerState<RingingScreen> {
   void initState() {
     super.initState();
     _loadAlarm();
+    _loadSnoozes();
     _clockTimer = Timer.periodic(const Duration(seconds: 1), (_) {
       if (mounted) setState(() => _now = DateTime.now());
     });
@@ -71,6 +92,8 @@ class _RingingScreenState extends ConsumerState<RingingScreen> {
   @override
   void dispose() {
     _clockTimer?.cancel();
+    _autoFinish?.cancel();
+    _quietBar.dispose();
     super.dispose();
   }
 
@@ -87,12 +110,50 @@ class _RingingScreenState extends ConsumerState<RingingScreen> {
     }
   }
 
+  Future<void> _loadSnoozes() async {
+    try {
+      final used = await ref.read(wakeStatsProvider).snoozesUsed(widget.alarmId);
+      if (mounted) setState(() => _snoozesUsed = used);
+    } catch (_) {
+      // Unknown — Snooze stays available.
+    }
+  }
+
+  /// Null when unknown (alarm or count not loaded): Snooze is then shown
+  /// without a count rather than hidden.
+  int? get _snoozesLeft {
+    final alarm = _alarm;
+    final used = _snoozesUsed;
+    if (alarm == null || used == null) return null;
+    return max(0, alarm.maxSnoozes - used);
+  }
+
   Future<void> _onMissionComplete() async {
     if (_dismissed) return;
     HapticFeedback.mediumImpact();
+    // Silence the alarm while the morning screen is up. dismissRinging also
+    // closes this screen natively, so it waits for [_finish].
+    ref.read(alarmBridgeProvider).muteRinging(_quietFor.inSeconds);
+    _quietBar.stop();
     setState(() => _dismissed = true);
-    // Hold the "good morning" moment briefly before tearing the screen down.
-    await Future.delayed(const Duration(milliseconds: 1100));
+    // Leaves well before the mute runs out, even if nobody taps.
+    _autoFinish = Timer(const Duration(seconds: 6), _finish);
+
+    // The in-app test route uses id -1; that's not a real morning.
+    if (widget.alarmId < 0) return;
+    try {
+      final summary =
+          await ref.read(wakeStatsProvider).recordWake(widget.alarmId);
+      if (mounted) setState(() => _summary = summary);
+    } catch (_) {
+      // The morning screen simply shows no stats.
+    }
+  }
+
+  Future<void> _finish() async {
+    if (_finishing) return;
+    _finishing = true;
+    _autoFinish?.cancel();
     await ref.read(alarmBridgeProvider).dismissRinging(widget.alarmId);
     if (mounted) Navigator.of(context).maybePop();
   }
@@ -116,7 +177,8 @@ class _RingingScreenState extends ConsumerState<RingingScreen> {
       return;
     }
     _lastMuteCall = now;
-    ref.read(alarmBridgeProvider).muteRinging(15);
+    ref.read(alarmBridgeProvider).muteRinging(_quietFor.inSeconds);
+    _quietBar.forward(from: 0);
   }
 
   @override
@@ -134,7 +196,7 @@ class _RingingScreenState extends ConsumerState<RingingScreen> {
         backgroundColor: t.ringingBackground,
         body: Stack(
           children: [
-            const Positioned.fill(child: _AmbientGlow()),
+            Positioned.fill(child: _AmbientGlow(startedAt: _ringStartedAt)),
             Positioned.fill(
               child: SafeArea(
                 // Scrolls only as a fallback: on short screens the mission
@@ -171,6 +233,10 @@ class _RingingScreenState extends ConsumerState<RingingScreen> {
                                   ),
                                 ),
                               ],
+                              if (_missionActive && !_dismissed) ...[
+                                const Gap(AppTokens.space12),
+                                _QuietBar(animation: _quietBar, total: _quietFor),
+                              ],
                               if (widget.label.isNotEmpty) ...[
                                 const Gap(AppTokens.space8),
                                 Text(
@@ -204,7 +270,8 @@ class _RingingScreenState extends ConsumerState<RingingScreen> {
                                         },
                                       ),
                               const Spacer(flex: 3),
-                              if (!_dismissed) _SnoozeButton(onTap: _snooze),
+                              if (!_dismissed)
+                                _SnoozeButton(onTap: _snooze, left: _snoozesLeft),
                               const Gap(AppTokens.space8),
                             ],
                           ),
@@ -215,7 +282,10 @@ class _RingingScreenState extends ConsumerState<RingingScreen> {
                 ),
               ),
             ),
-            if (_dismissed) const Positioned.fill(child: _GoodMorning()),
+            if (_dismissed)
+              Positioned.fill(
+                child: _MorningScreen(summary: _summary, onDone: _finish),
+              ),
           ],
         ),
       ),
@@ -227,7 +297,13 @@ class _RingingScreenState extends ConsumerState<RingingScreen> {
 /// A very slow drifting radial glow behind the clock — just enough motion to
 /// read as "alive" without being distracting to someone half awake.
 class _AmbientGlow extends StatefulWidget {
-  const _AmbientGlow();
+  const _AmbientGlow({required this.startedAt});
+
+  /// When the alarm started ringing: the glow warms up from here.
+  final DateTime startedAt;
+
+  /// Time for the "sunrise" to reach full strength.
+  static const sunrise = Duration(minutes: 3);
 
   @override
   State<_AmbientGlow> createState() => _AmbientGlowState();
@@ -259,6 +335,13 @@ class _AmbientGlowState extends State<_AmbientGlow>
       animation: _controller,
       builder: (context, _) {
         final a = Curves.easeInOut.transform(_controller.value);
+        // 0 → 1 over [_AmbientGlow.sunrise]: the glow strengthens and a warm
+        // horizon rises from the bottom the longer the alarm rings.
+        final elapsed = DateTime.now().difference(widget.startedAt);
+        final warmth = Curves.easeIn.transform(
+          (elapsed.inMilliseconds / _AmbientGlow.sunrise.inMilliseconds)
+              .clamp(0.0, 1.0),
+        );
         return DecoratedBox(
           decoration: BoxDecoration(
             gradient: RadialGradient(
@@ -269,9 +352,21 @@ class _AmbientGlowState extends State<_AmbientGlow>
               )!,
               radius: 1.4,
               colors: [
-                Color.lerp(t.brand, t.ringingBackground, 0.74)!,
+                Color.lerp(t.brand, t.ringingBackground, 0.74 - 0.24 * warmth)!,
                 t.ringingBackground,
               ],
+            ),
+          ),
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.bottomCenter,
+                end: Alignment.center,
+                colors: [
+                  t.brand.withValues(alpha: 0.28 * warmth),
+                  t.brand.withValues(alpha: 0),
+                ],
+              ),
             ),
           ),
         );
@@ -350,50 +445,211 @@ class _MissionArea extends StatelessWidget {
 }
 
 class _SnoozeButton extends StatelessWidget {
-  const _SnoozeButton({required this.onTap});
+  const _SnoozeButton({required this.onTap, required this.left});
 
   final VoidCallback onTap;
+
+  /// Snoozes remaining, or null if unknown.
+  final int? left;
 
   @override
   Widget build(BuildContext context) {
     final t = context.tokens;
+    if (left == 0) {
+      return Padding(
+        padding: const EdgeInsets.all(AppTokens.space12),
+        child: Text(
+          'No snoozes left',
+          style: Theme.of(context).textTheme.bodySmall,
+        ),
+      );
+    }
     return TextButton.icon(
       onPressed: onTap,
       icon: Icon(Icons.snooze_rounded, size: 18, color: t.textFaint),
-      label: Text('Snooze', style: TextStyle(color: t.textFaint)),
+      label: Text(
+        left == null ? 'Snooze' : 'Snooze · $left left',
+        style: TextStyle(color: t.textFaint),
+      ),
     );
   }
 }
 
-/// The full-bleed positive beat shown for ~1s after a mission is cleared,
-/// before the ringing screen tears itself down.
-class _GoodMorning extends StatelessWidget {
-  const _GoodMorning();
+/// Shown while a mission is in progress: how long until the alarm sound
+/// comes back. Refills on every mute call; turns red for the last seconds.
+class _QuietBar extends StatelessWidget {
+  const _QuietBar({required this.animation, required this.total});
+
+  final Animation<double> animation;
+  final Duration total;
 
   @override
   Widget build(BuildContext context) {
     final t = context.tokens;
     final text = Theme.of(context).textTheme;
+    return AnimatedBuilder(
+      animation: animation,
+      builder: (context, _) {
+        final running = animation.value > 0 && animation.value < 1;
+        final remaining = 1 - animation.value;
+        final seconds = (remaining * total.inSeconds).ceil();
+        final urgent = running && seconds <= 3;
+        final color = urgent ? t.danger : t.missionAccent;
+        return SizedBox(
+          width: 200,
+          child: Column(
+            children: [
+              ClipRRect(
+                borderRadius: BorderRadius.circular(AppTokens.radiusPill),
+                child: LinearProgressIndicator(
+                  value: running ? remaining : 0,
+                  minHeight: 4,
+                  color: color,
+                  backgroundColor: t.surface2,
+                ),
+              ),
+              const Gap(AppTokens.space4),
+              Text(
+                running ? 'Quiet · sound returns in ${seconds}s' : 'Alarm is ringing',
+                style: text.bodySmall?.copyWith(
+                  color: urgent ? t.danger : t.textFaint,
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+}
+
+/// Shown after a mission is cleared, until [onDone] (a tap, or a timer in
+/// the ringing screen): a sunrise ground with the wake-up time, the streak
+/// and the snooze count. Stats appear once [summary] arrives; without it
+/// the screen still works, just quieter.
+class _MorningScreen extends StatelessWidget {
+  const _MorningScreen({required this.summary, required this.onDone});
+
+  final WakeSummary? summary;
+  final VoidCallback onDone;
+
+  @override
+  Widget build(BuildContext context) {
+    final t = context.tokens;
+    final text = Theme.of(context).textTheme;
+    final s = summary;
+    final wokeAt = (MediaQuery.alwaysUse24HourFormatOf(context)
+            ? DateFormat.Hm()
+            : DateFormat.jm())
+        .format(s?.wokeAt ?? DateTime.now());
+
     return TweenAnimationBuilder<double>(
       tween: Tween<double>(begin: 0.0, end: 1.0),
       duration: AppTokens.motionSlow,
       curve: Curves.easeOut,
       builder: (context, v, child) => Opacity(opacity: v, child: child),
-      child: ColoredBox(
-        color: t.brand,
-        child: Center(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(Icons.wb_sunny_rounded, size: 64, color: t.onBrand),
-              const Gap(AppTokens.space16),
-              Text(
-                'Good morning',
-                style: text.displaySmall?.copyWith(color: t.onBrand),
-              ),
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [
+              t.ringingBackground,
+              Color.lerp(t.ringingBackground, t.brand, 0.35)!,
+              t.brand,
             ],
+            stops: const [0.0, 0.6, 1.0],
           ),
         ),
+        child: SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.all(AppTokens.space24),
+            child: Column(
+              children: [
+                const Spacer(flex: 3),
+                Icon(Icons.wb_sunny_rounded, size: 56, color: t.brand),
+                const Gap(AppTokens.space16),
+                Text('Good morning', style: text.displaySmall),
+                const Gap(AppTokens.space8),
+                Text(
+                  'Up at $wokeAt',
+                  style: text.titleMedium?.copyWith(color: t.textSecondary),
+                ),
+                const Gap(AppTokens.space32),
+                AnimatedOpacity(
+                  opacity: s == null ? 0 : 1,
+                  duration: AppTokens.motionBase,
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: _StatTile(
+                          icon: Icons.local_fire_department_rounded,
+                          value: '${s?.streakDays ?? 0}',
+                          label: 'day streak',
+                        ),
+                      ),
+                      const Gap.w(AppTokens.space12),
+                      Expanded(
+                        child: _StatTile(
+                          icon: Icons.snooze_rounded,
+                          value: '${s?.snoozes ?? 0}',
+                          label: s?.snoozes == 1 ? 'snooze' : 'snoozes',
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const Spacer(flex: 4),
+                SizedBox(
+                  width: double.infinity,
+                  child: FilledButton(
+                    onPressed: onDone,
+                    style: FilledButton.styleFrom(
+                      backgroundColor: t.ringingForeground,
+                      foregroundColor: t.ringingBackground,
+                    ),
+                    child: const Text('Start my day'),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _StatTile extends StatelessWidget {
+  const _StatTile({
+    required this.icon,
+    required this.value,
+    required this.label,
+  });
+
+  final IconData icon;
+  final String value;
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    final t = context.tokens;
+    final text = Theme.of(context).textTheme;
+    return Container(
+      padding: const EdgeInsets.all(AppTokens.space16),
+      decoration: BoxDecoration(
+        color: t.ringingBackground.withValues(alpha: 0.45),
+        borderRadius: AppTokens.cornerLg,
+        border: Border.all(color: t.hairline),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(icon, size: 20, color: t.brand),
+          const Gap(AppTokens.space8),
+          Text(value, style: text.headlineMedium),
+          Text(label, style: text.bodySmall?.copyWith(color: t.textSecondary)),
+        ],
       ),
     );
   }

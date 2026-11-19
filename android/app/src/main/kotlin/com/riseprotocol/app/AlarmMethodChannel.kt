@@ -158,6 +158,7 @@ object AlarmMethodChannel {
                         snoozeMinutes = minutes
                     )
                 AlarmLog.add(context, "snooze requested from the ringing screen (id=$id, ${minutes}m)")
+                SnoozeCounter.increment(context, id)
                 AlarmScheduler.schedule(context, newTrigger)
                 Toast.makeText(context, "Snoozed — ringing again in $minutes min", Toast.LENGTH_LONG).show()
                 AlarmRingService.stop(context)

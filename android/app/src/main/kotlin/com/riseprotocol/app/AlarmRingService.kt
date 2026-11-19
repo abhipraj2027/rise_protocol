@@ -110,6 +110,7 @@ class AlarmRingService : Service() {
                             ),
                     )
                     AlarmLog.add(this, "snoozed from the notification (id=$id, ${minutes}m)")
+                    SnoozeCounter.increment(this, id)
                     Toast.makeText(this, "Snoozed - ringing again in $minutes min", Toast.LENGTH_LONG).show()
                 }
                 stopSelfCleanly()
