@@ -2,7 +2,8 @@ import 'package:flutter/material.dart';
 
 import '../theme/app_tokens.dart';
 
-/// The time, rendered as an instrument: hours and minutes as separate
+/// The time, rendered as an instrument (12- or 24-hour, following the
+/// device): hours and minutes as separate
 /// fixed-width tabular blocks so nothing shifts as digits change, with a
 /// colon that breathes once every ~1.4s.
 ///
@@ -58,6 +59,13 @@ class _ClockDisplayState extends State<ClockDisplay>
 
   String _two(int n) => n.toString().padLeft(2, '0');
 
+  /// "07" in 24-hour mode; "7" in 12-hour mode, following the device.
+  String _hour(BuildContext context) {
+    final h = widget.time.hour;
+    if (MediaQuery.alwaysUse24HourFormatOf(context)) return _two(h);
+    return '${h % 12 == 0 ? 12 : h % 12}';
+  }
+
   @override
   Widget build(BuildContext context) {
     final t = context.tokens;
@@ -70,7 +78,7 @@ class _ClockDisplayState extends State<ClockDisplay>
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.center,
       children: [
-        Text(_two(widget.time.hour), style: base),
+        Text(_hour(context), style: base),
         AnimatedBuilder(
           animation: _controller,
           builder: (context, child) {

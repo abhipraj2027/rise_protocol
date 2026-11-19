@@ -6,17 +6,28 @@ import '../../data/alarm.dart';
 /// next-alarm hero. Pure functions — no widgets — so they're trivial to
 /// unit-test.
 extension AlarmDisplay on Alarm {
-  /// "6:40 AM" — the wall-clock time, locale-formatted.
-  String get clockLabel {
-    final dt = DateTime(2000, 1, 1, hour, minute);
-    return DateFormat.jm().format(dt);
-  }
+  /// "6:40 AM" or "06:40", following the device's 12/24-hour setting
+  /// (pass `MediaQuery.alwaysUse24HourFormatOf(context)`).
+  String clockLabel({required bool use24h}) =>
+      formatClock(DateTime(2000, 1, 1, hour, minute), use24h: use24h);
 
   /// The next moment this alarm fires, as a [DateTime], or null if disabled.
   DateTime? nextFire({DateTime? from}) {
     if (!enabled) return null;
     return DateTime.fromMillisecondsSinceEpoch(nextTriggerMillis(from: from));
   }
+}
+
+/// "6:40 AM" / "06:40" for any [DateTime].
+String formatClock(DateTime when, {required bool use24h}) =>
+    (use24h ? DateFormat.Hm() : DateFormat.jm()).format(when);
+
+/// The clock split for display at two sizes: ("6:40", "AM") in 12-hour
+/// mode, ("06:40", null) in 24-hour mode.
+(String, String?) clockParts(int hour, int minute, {required bool use24h}) {
+  final dt = DateTime(2000, 1, 1, hour, minute);
+  if (use24h) return (DateFormat.Hm().format(dt), null);
+  return (DateFormat('h:mm').format(dt), DateFormat('a').format(dt));
 }
 
 /// "in 7h 32m", "in 45m", "in less than a minute", "in 3 days".
@@ -32,13 +43,13 @@ String humanizeUntil(Duration d) {
   return days == 1 ? 'in 1 day' : 'in $days days';
 }
 
-/// "Today 6:40 AM", "Tomorrow 6:40 AM", "Fri 6:40 AM".
-String dayAndTime(DateTime when, {DateTime? now}) {
+/// "Today 6:40 AM", "Tomorrow 6:40 AM", "Fri 6:40 AM" (or 24-hour times).
+String dayAndTime(DateTime when, {DateTime? now, required bool use24h}) {
   final ref = now ?? DateTime.now();
   final today = DateTime(ref.year, ref.month, ref.day);
   final target = DateTime(when.year, when.month, when.day);
   final deltaDays = target.difference(today).inDays;
-  final time = DateFormat.jm().format(when);
+  final time = formatClock(when, use24h: use24h);
   if (deltaDays <= 0) return 'Today $time';
   if (deltaDays == 1) return 'Tomorrow $time';
   return '${DateFormat.E().format(when)} $time';

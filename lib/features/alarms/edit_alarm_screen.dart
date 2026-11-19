@@ -188,16 +188,22 @@ class _EditAlarmScreenState extends ConsumerState<EditAlarmScreen> {
                   subtitle: 'What you have to do before the alarm will stop.',
                 ),
                 const Gap(AppTokens.space12),
-                for (final m in MissionType.values) ...[
+                for (final m
+                    in MissionType.values.where((m) => m.isImplemented)) ...[
                   _MissionOption(
                     mission: m,
                     selected: m == _missionType,
-                    onTap: m.isImplemented
-                        ? () => setState(() => _missionType = m)
-                        : null,
+                    onTap: () => setState(() => _missionType = m),
                   ),
                   const Gap(AppTokens.space8),
                 ],
+                Padding(
+                  padding: const EdgeInsets.only(left: AppTokens.space4),
+                  child: Text(
+                    'Shake, photo and barcode missions are coming soon.',
+                    style: Theme.of(context).textTheme.bodySmall,
+                  ),
+                ),
                 if (_missionType == MissionType.qna) ...[
                   const Gap(AppTokens.space4),
                   AppCard(
@@ -282,8 +288,10 @@ class _RingsAtLine extends StatelessWidget {
     final fireAt = DateTime.fromMillisecondsSinceEpoch(
       draft.nextTriggerMillis(from: now),
     );
+    final use24h = MediaQuery.alwaysUse24HourFormatOf(context);
     return Text(
-      'Rings ${dayAndTime(fireAt, now: now)}  ·  ${humanizeUntil(fireAt.difference(now))}',
+      'Rings ${dayAndTime(fireAt, now: now, use24h: use24h)}'
+      '  ·  ${humanizeUntil(fireAt.difference(now))}',
       style: Theme.of(context)
           .textTheme
           .bodyMedium
@@ -292,6 +300,8 @@ class _RingsAtLine extends StatelessWidget {
   }
 }
 
+/// Hour and minute wheels. Follows the device's 12/24-hour setting: in
+/// 12-hour mode the hour wheel runs 12, 1 … 11 and an AM/PM wheel follows.
 class _TimeWheel extends StatelessWidget {
   const _TimeWheel({required this.time, required this.onChanged});
 
@@ -301,38 +311,83 @@ class _TimeWheel extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final text = Theme.of(context).textTheme;
+    final use24h = MediaQuery.alwaysUse24HourFormatOf(context);
+    final isPm = time.hour >= 12;
+    final localizations = MaterialLocalizations.of(context);
+
     return SizedBox(
       height: 176,
       child: Row(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          _WheelColumn(
-            count: 24,
-            selected: time.hour,
-            onSelected: (h) => onChanged(time.replacing(hour: h)),
-          ),
+          // Keyed so flipping the system setting rebuilds the wheel rather
+          // than reusing a controller sized for the other mode.
+          if (use24h)
+            _WheelColumn(
+              key: const ValueKey('hour-24'),
+              count: 24,
+              selected: time.hour,
+              labelOf: _two,
+              onSelected: (h) => onChanged(time.replacing(hour: h)),
+            )
+          else
+            _WheelColumn(
+              key: const ValueKey('hour-12'),
+              count: 12,
+              selected: time.hour % 12,
+              labelOf: (i) => i == 0 ? '12' : '$i',
+              onSelected: (i) =>
+                  onChanged(time.replacing(hour: i + (isPm ? 12 : 0))),
+            ),
           Text(':', style: text.displayMedium?.copyWith(color: context.tokens.textFaint)),
           _WheelColumn(
             count: 60,
             selected: time.minute,
+            labelOf: _two,
             onSelected: (m) => onChanged(time.replacing(minute: m)),
           ),
+          if (!use24h) ...[
+            const Gap.w(AppTokens.space8),
+            _WheelColumn(
+              count: 2,
+              selected: isPm ? 1 : 0,
+              width: 72,
+              small: true,
+              labelOf: (i) => i == 0
+                  ? localizations.anteMeridiemAbbreviation
+                  : localizations.postMeridiemAbbreviation,
+              onSelected: (i) => onChanged(
+                time.replacing(hour: time.hour % 12 + (i == 1 ? 12 : 0)),
+              ),
+            ),
+          ],
         ],
       ),
     );
   }
+
+  static String _two(int i) => i.toString().padLeft(2, '0');
 }
 
 class _WheelColumn extends StatefulWidget {
   const _WheelColumn({
+    super.key,
     required this.count,
     required this.selected,
+    required this.labelOf,
     required this.onSelected,
+    this.width = 80,
+    this.small = false,
   });
 
   final int count;
   final int selected;
+  final String Function(int index) labelOf;
   final ValueChanged<int> onSelected;
+  final double width;
+
+  /// Smaller type, for the AM/PM wheel.
+  final bool small;
 
   @override
   State<_WheelColumn> createState() => _WheelColumnState();
@@ -367,8 +422,9 @@ class _WheelColumnState extends State<_WheelColumn> {
   Widget build(BuildContext context) {
     final t = context.tokens;
     final text = Theme.of(context).textTheme;
+    final style = widget.small ? text.titleLarge : text.displaySmall;
     return SizedBox(
-      width: 80,
+      width: widget.width,
       child: ListWheelScrollView.useDelegate(
         controller: _controller,
         itemExtent: 58,
@@ -385,8 +441,8 @@ class _WheelColumnState extends State<_WheelColumn> {
             final isSel = i == widget.selected;
             return Center(
               child: Text(
-                i.toString().padLeft(2, '0'),
-                style: text.displaySmall?.copyWith(
+                widget.labelOf(i),
+                style: style?.copyWith(
                   color: isSel ? t.brand : t.textFaint,
                   fontWeight: isSel ? FontWeight.w700 : FontWeight.w300,
                 ),
@@ -403,68 +459,34 @@ class _MissionOption extends StatelessWidget {
   const _MissionOption({
     required this.mission,
     required this.selected,
-    this.onTap,
+    required this.onTap,
   });
 
   final MissionType mission;
   final bool selected;
-  final VoidCallback? onTap;
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
     final t = context.tokens;
     final text = Theme.of(context).textTheme;
-    final enabled = onTap != null;
 
     return AppCard(
       onTap: onTap,
       selected: selected,
-      child: Opacity(
-        opacity: enabled ? 1.0 : 0.55,
-        child: Row(
-          children: [
-            Icon(mission.icon, color: selected ? t.brand : t.textSecondary),
-            const Gap.w(AppTokens.space12),
-            Expanded(
-              child: Text(
-                mission == MissionType.none ? 'None (tap to dismiss)' : mission.label,
-                style: text.titleSmall?.copyWith(color: t.textPrimary),
-              ),
+      child: Row(
+        children: [
+          Icon(mission.icon, color: selected ? t.brand : t.textSecondary),
+          const Gap.w(AppTokens.space12),
+          Expanded(
+            child: Text(
+              mission.label,
+              style: text.titleSmall?.copyWith(color: t.textPrimary),
             ),
-            if (!mission.isImplemented)
-              const _Tag(text: 'Later')
-            else if (selected)
-              Icon(Icons.check_circle_rounded, color: t.brand, size: 20),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _Tag extends StatelessWidget {
-  const _Tag({required this.text});
-
-  final String text;
-
-  @override
-  Widget build(BuildContext context) {
-    final t = context.tokens;
-    return Container(
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppTokens.space8,
-        vertical: AppTokens.space2,
-      ),
-      decoration: BoxDecoration(
-        color: t.surface2,
-        borderRadius: AppTokens.cornerSm,
-      ),
-      child: Text(
-        text.toUpperCase(),
-        style: Theme.of(context)
-            .textTheme
-            .labelSmall
-            ?.copyWith(color: t.textFaint),
+          ),
+          if (selected)
+            Icon(Icons.check_circle_rounded, color: t.brand, size: 20),
+        ],
       ),
     );
   }

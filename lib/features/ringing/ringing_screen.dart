@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:intl/intl.dart';
 
 import '../../core/alarm_bridge.dart';
 import '../../core/theme/app_tokens.dart';
@@ -138,12 +139,24 @@ class _RingingScreenState extends ConsumerState<RingingScreen> {
                                 time: _now,
                                 style: _missionActive ? text.displayMedium : null,
                               ),
+                              // The date only while the clock has room for it;
+                              // during a mission the keypad needs the space.
+                              if (!_missionActive) ...[
+                                const Gap(AppTokens.space8),
+                                Text(
+                                  DateFormat.MMMMEEEEd().format(_now),
+                                  style: text.titleMedium?.copyWith(
+                                    color: t.textSecondary,
+                                  ),
+                                ),
+                              ],
                               if (widget.label.isNotEmpty) ...[
                                 const Gap(AppTokens.space8),
                                 Text(
                                   widget.label,
+                                  textAlign: TextAlign.center,
                                   style: text.titleMedium?.copyWith(
-                                    color: t.textSecondary,
+                                    color: t.brand,
                                   ),
                                 ),
                               ],

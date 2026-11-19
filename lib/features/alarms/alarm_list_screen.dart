@@ -133,7 +133,8 @@ class AlarmListScreen extends ConsumerWidget {
     final messenger = ScaffoldMessenger.of(context);
     final name = alarm.label.trim().isNotEmpty
         ? alarm.label.trim()
-        : alarm.clockLabel;
+        : alarm.clockLabel(
+            use24h: MediaQuery.alwaysUse24HourFormatOf(context));
     await actions.remove(alarm);
     messenger.clearSnackBars();
     messenger.showSnackBar(

@@ -44,6 +44,7 @@ class _NextAlarmHeroState extends State<NextAlarmHero> {
 
     final DateTime? fireAt = next?.nextFire(from: now);
     final bool hasNext = next != null && fireAt != null;
+    final use24h = MediaQuery.alwaysUse24HourFormatOf(context);
 
     return Container(
       width: double.infinity,
@@ -86,7 +87,7 @@ class _NextAlarmHeroState extends State<NextAlarmHero> {
             ),
             const SizedBox(height: AppTokens.space4),
             Text(
-              '${dayAndTime(fireAt, now: now)}'
+              '${dayAndTime(fireAt, now: now, use24h: use24h)}'
               '${next.label.isNotEmpty ? '  ·  ${next.label}' : ''}',
               style: text.bodyMedium?.copyWith(color: t.textSecondary),
             ),
