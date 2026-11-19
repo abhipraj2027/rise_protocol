@@ -36,6 +36,7 @@ object AlarmMethodChannel {
                 val label = call.argument<String>("label") ?: ""
                 val mission = call.argument<String>("missionType") ?: "none"
                 val snooze = call.argument<Int>("snoozeMinutes") ?: 5
+                val maxSnoozes = call.argument<Int>("maxSnoozes") ?: 3
                 val hour = call.argument<Int>("hour") ?: -1
                 val minute = call.argument<Int>("minute") ?: 0
                 val days = (call.argument<List<Int>>("repeatDays") ?: emptyList()).toSet()
@@ -49,6 +50,7 @@ object AlarmMethodChannel {
                         label = label,
                         missionType = mission,
                         snoozeMinutes = snooze,
+                        maxSnoozes = maxSnoozes,
                         hour = hour,
                         minute = minute,
                         repeatDays = days,

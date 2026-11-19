@@ -83,3 +83,27 @@ String repeatSummary(Set<int> days) {
   const names = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
   return sorted.map((d) => names[d - 1]).join(' ');
 }
+
+/// The sleep goal the home card plans around.
+const sleepGoal = Duration(hours: 8);
+
+/// A bedtime nudge for the next alarm, or null when it isn't tonight's
+/// alarm (more than 14h away) or it's too close to matter (under 1h):
+///  - "Go to bed by 10:40 PM for 8 hours of sleep" while there's time;
+///  - "Sleep now and you'll get 6h 35m" once that bedtime has passed
+///    (rounded down to 5 minutes).
+String? sleepHint(DateTime now, DateTime fireAt, {required bool use24h}) {
+  final until = fireAt.difference(now);
+  if (until > const Duration(hours: 14) || until < const Duration(hours: 1)) {
+    return null;
+  }
+  final bedtime = fireAt.subtract(sleepGoal);
+  if (now.isBefore(bedtime)) {
+    return 'Go to bed by ${formatClock(bedtime, use24h: use24h)} '
+        'for ${sleepGoal.inHours} hours of sleep';
+  }
+  final minutes = until.inMinutes - until.inMinutes % 5;
+  final h = minutes ~/ 60;
+  final m = minutes % 60;
+  return "Sleep now and you'll get ${m == 0 ? '${h}h' : '${h}h ${m}m'}";
+}

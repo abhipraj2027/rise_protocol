@@ -29,4 +29,27 @@ void main() {
       expect(dayAndTime(tomorrow, now: now, use24h: true), 'Tomorrow 07:30');
     });
   });
+
+  group('sleepHint', () {
+    final alarm = DateTime(2026, 11, 20, 6, 40);
+
+    test('suggests a bedtime while there is time', () {
+      expect(
+        plain(sleepHint(DateTime(2026, 11, 19, 21, 0), alarm, use24h: false)!),
+        'Go to bed by 10:40 PM for 8 hours of sleep',
+      );
+    });
+
+    test('says how much sleep is left once bedtime has passed', () {
+      expect(
+        sleepHint(DateTime(2026, 11, 20, 0, 3), alarm, use24h: true),
+        "Sleep now and you'll get 6h 35m",
+      );
+    });
+
+    test('stays quiet for far-off or imminent alarms', () {
+      expect(sleepHint(DateTime(2026, 11, 19, 12, 0), alarm, use24h: true), isNull);
+      expect(sleepHint(DateTime(2026, 11, 20, 6, 0), alarm, use24h: true), isNull);
+    });
+  });
 }

@@ -34,6 +34,9 @@ object AlarmScheduler {
         /** The alarm's own snooze length, so snoozing from the ringing screen
          *  or the notification honours the editor setting. */
         val snoozeMinutes: Int = 5,
+        /** Snoozes allowed per ring; the notification hides Snooze once
+         *  SnoozeCounter reaches it. */
+        val maxSnoozes: Int = 3,
         /** The alarm's wall-clock time and repeat days (ISO weekday, 1 = Mon
          *  … 7 = Sun; same as Dart's DateTime.weekday). hour = -1 means the
          *  rule is unknown (an alarm saved by an older build). */
@@ -195,6 +198,7 @@ object AlarmScheduler {
                     label = obj.optString("label", ""),
                     missionType = obj.optString("missionType", "none"),
                     snoozeMinutes = obj.optInt("snoozeMinutes", 5),
+                    maxSnoozes = obj.optInt("maxSnoozes", 3),
                     hour = obj.optInt("hour", -1),
                     minute = obj.optInt("minute", 0),
                     repeatDays = days,
@@ -215,6 +219,7 @@ object AlarmScheduler {
             obj.put("label", t.label)
             obj.put("missionType", t.missionType)
             obj.put("snoozeMinutes", t.snoozeMinutes)
+            obj.put("maxSnoozes", t.maxSnoozes)
             obj.put("hour", t.hour)
             obj.put("minute", t.minute)
             val days = JSONArray()

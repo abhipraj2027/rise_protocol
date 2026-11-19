@@ -91,6 +91,23 @@ class _NextAlarmHeroState extends State<NextAlarmHero> {
               '${next.label.isNotEmpty ? '  ·  ${next.label}' : ''}',
               style: text.bodyMedium?.copyWith(color: t.textSecondary),
             ),
+            if (sleepHint(now, fireAt, use24h: use24h) case final hint?) ...[
+              const SizedBox(height: AppTokens.space16),
+              Divider(height: 1, color: t.hairline),
+              const SizedBox(height: AppTokens.space12),
+              Row(
+                children: [
+                  Icon(Icons.bedtime_outlined, size: 16, color: t.textFaint),
+                  const SizedBox(width: AppTokens.space8),
+                  Expanded(
+                    child: Text(
+                      hint,
+                      style: text.bodySmall?.copyWith(color: t.textSecondary),
+                    ),
+                  ),
+                ],
+              ),
+            ],
           ] else
             Text(
               'Add an alarm to get your mornings back.',

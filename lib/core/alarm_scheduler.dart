@@ -27,6 +27,7 @@ class AlarmScheduler {
       label: alarm.label,
       missionType: alarm.missionType.name,
       snoozeMinutes: alarm.snoozeMinutes,
+      maxSnoozes: alarm.maxSnoozes,
       hour: alarm.hour,
       minute: alarm.minute,
       repeatDays: alarm.repeatDays.toList()..sort(),

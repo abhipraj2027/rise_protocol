@@ -61,4 +61,38 @@ void main() {
     expect(summary.streakDays, 2);
     expect(await stats.snoozesUsed(4, now: now), 0);
   });
+
+  group('WeekStats', () {
+    final now = DateTime(2026, 11, 19, 21, 0); // evening, no wake today yet
+
+    test("uses each day's first wake-up and totals the week", () {
+      final entries = [
+        WakeEntry(at: DateTime(2026, 11, 18, 6, 30), snoozes: 1),
+        WakeEntry(at: DateTime(2026, 11, 18, 9, 0), snoozes: 0),
+        WakeEntry(at: DateTime(2026, 11, 17, 7, 30), snoozes: 2),
+        WakeEntry(at: DateTime(2026, 11, 1, 7, 0), snoozes: 5), // outside week
+      ];
+      final w = WeekStats.from(entries, {'2026-11-17', '2026-11-18'}, now);
+
+      expect(w.days.first, DateTime(2026, 11, 13));
+      expect(w.days.last, DateTime(2026, 11, 19));
+      expect(w.daysUp, 2);
+      expect(w.snoozes, 3);
+      expect(w.mornings[5]?.at, DateTime(2026, 11, 18, 6, 30));
+      expect(w.averageWake, const Duration(hours: 7)); // 6:30 and 7:30
+    });
+
+    test("keeps yesterday's streak until today has a wake-up", () {
+      final w = WeekStats.from(const [], {'2026-11-17', '2026-11-18'}, now);
+      expect(w.streakDays, 2);
+    });
+  });
+
+  test('wake log entries round-trip', () {
+    final e = WakeEntry(at: DateTime(2026, 11, 19, 6, 58), snoozes: 2);
+    final back = WakeEntry.decode(e.encode())!;
+    expect(back.at, e.at);
+    expect(back.snoozes, 2);
+    expect(WakeEntry.decode('garbage'), isNull);
+  });
 }

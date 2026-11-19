@@ -11,6 +11,7 @@ import '../../core/ui/stagger_in.dart';
 import '../../data/alarm.dart';
 import '../../data/alarm_repository.dart';
 import '../onboarding/permission_onboarding_screen.dart';
+import '../stats/stats_screen.dart';
 import 'alarm_formatting.dart';
 import 'edit_alarm_screen.dart';
 import 'widgets/alarm_tile.dart';
@@ -48,6 +49,13 @@ class AlarmListScreen extends ConsumerWidget {
                   icon: const Icon(Icons.palette_outlined),
                   onPressed: () => Navigator.of(context).pushNamed('/gallery'),
                 ),
+              IconButton(
+                tooltip: 'Your mornings',
+                icon: const Icon(Icons.insights_rounded),
+                onPressed: () => Navigator.of(context).push(
+                  MaterialPageRoute(builder: (_) => const StatsScreen()),
+                ),
+              ),
               IconButton(
                 tooltip: 'Permissions',
                 icon: const Icon(Icons.shield_outlined),

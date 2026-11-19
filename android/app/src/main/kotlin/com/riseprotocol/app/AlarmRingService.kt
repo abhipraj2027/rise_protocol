@@ -94,8 +94,16 @@ class AlarmRingService : Service() {
             }
             ACTION_SNOOZE -> {
                 val id = intent?.getIntExtra(AlarmReceiver.EXTRA_ID, -1) ?: -1
+                val storedForLimit = AlarmScheduler.readAll(this).find { it.id == id }
+                if (id != -1 && SnoozeCounter.limitReached(this, storedForLimit)) {
+                    // A stale notification from before the limit was hit:
+                    // keep ringing rather than snoozing past it.
+                    AlarmLog.add(this, "snooze refused, limit reached (id=$id)")
+                    Toast.makeText(this, "No snoozes left", Toast.LENGTH_SHORT).show()
+                    return START_NOT_STICKY
+                }
                 if (id != -1) {
-                    val stored = AlarmScheduler.readAll(this).find { it.id == id }
+                    val stored = storedForLimit
                     val minutes = stored?.snoozeMinutes ?: SNOOZE_MINUTES
                     val snoozeAt = System.currentTimeMillis() + minutes * 60_000L
                     AlarmScheduler.schedule(
@@ -252,7 +260,11 @@ class AlarmRingService : Service() {
         qnaAnswer: String = "",
     ): Notification {
         val open = ringingActivityPendingIntent(id, label, mission, qnaQuestion, qnaAnswer)
-        return NotificationCompat.Builder(this, CHANNEL_ID)
+        val canSnooze = !SnoozeCounter.limitReached(
+            this,
+            AlarmScheduler.readAll(this).find { it.id == id },
+        )
+        val builder = NotificationCompat.Builder(this, CHANNEL_ID)
             .setSmallIcon(android.R.drawable.ic_lock_idle_alarm)
             .setContentTitle(if (label.isNotEmpty()) label else "Alarm")
             .setContentText("Tap to open your alarm")
@@ -262,7 +274,11 @@ class AlarmRingService : Service() {
             .setContentIntent(open)
             .setOngoing(true)
             .setAutoCancel(false)
-            .addAction(0, "Snooze", servicePendingIntent(ACTION_SNOOZE, id, label, mission))
+        // Snooze disappears once this alarm's limit is used up.
+        if (canSnooze) {
+            builder.addAction(0, "Snooze", servicePendingIntent(ACTION_SNOOZE, id, label, mission))
+        }
+        return builder
             .addAction(
                 0,
                 if (mission == "none") "Dismiss" else "Solve to dismiss",
