@@ -9,13 +9,19 @@ import '../../core/ui/gap.dart';
 import '../../core/ui/glass_surface.dart';
 import '../../core/ui/primary_button.dart';
 import '../../core/ui/section_header.dart';
+import '../../core/ui/settings_group.dart';
 import '../../core/ui/weekday_selector.dart';
 import '../../data/alarm.dart';
 import '../../data/alarm_repository.dart';
 import 'alarm_formatting.dart';
 import 'mission_icons.dart';
+import 'widgets/mission_sheet.dart';
 
 /// Create screen when [alarmId] is null, edit screen otherwise.
+///
+/// Layout: the time wheel, the repeat days, then one grouped settings card —
+/// Mission (opens [showMissionSheet]), Snooze with an inline stepper, and
+/// Label as an inline field.
 class EditAlarmScreen extends ConsumerStatefulWidget {
   const EditAlarmScreen({super.key, this.alarmId});
 
@@ -27,12 +33,13 @@ class EditAlarmScreen extends ConsumerStatefulWidget {
 
 class _EditAlarmScreenState extends ConsumerState<EditAlarmScreen> {
   late TimeOfDay _time;
-  late TextEditingController _labelController;
-  late TextEditingController _qnaQuestionController;
-  late TextEditingController _qnaAnswerController;
-  late Set<int> _repeatDays;
-  late MissionType _missionType;
-  late int _snoozeMinutes;
+  final _labelController = TextEditingController();
+  Set<int> _repeatDays = {};
+  int _snoozeMinutes = 5;
+
+  /// Holds the mission type, difficulty, problem count and Q&A as last set
+  /// in the mission sheet. Only those fields of this alarm are read.
+  Alarm _mission = const Alarm(hour: 0, minute: 0);
   Alarm? _existing;
   bool _loaded = false;
 
@@ -40,12 +47,6 @@ class _EditAlarmScreenState extends ConsumerState<EditAlarmScreen> {
   void initState() {
     super.initState();
     _time = TimeOfDay.now().replacing(minute: 0);
-    _labelController = TextEditingController();
-    _qnaQuestionController = TextEditingController();
-    _qnaAnswerController = TextEditingController();
-    _repeatDays = {};
-    _missionType = MissionType.math;
-    _snoozeMinutes = 5;
     if (widget.alarmId == null) _loaded = true;
   }
 
@@ -54,40 +55,43 @@ class _EditAlarmScreenState extends ConsumerState<EditAlarmScreen> {
     _existing = alarm;
     _time = TimeOfDay(hour: alarm.hour, minute: alarm.minute);
     _labelController.text = alarm.label;
-    _qnaQuestionController.text = alarm.qnaQuestion;
-    _qnaAnswerController.text = alarm.qnaAnswer;
     _repeatDays = {...alarm.repeatDays};
-    _missionType = alarm.missionType;
     _snoozeMinutes = alarm.snoozeMinutes;
+    _mission = alarm;
     _loaded = true;
   }
 
   @override
   void dispose() {
     _labelController.dispose();
-    _qnaQuestionController.dispose();
-    _qnaAnswerController.dispose();
     super.dispose();
   }
 
   /// A custom-question mission needs both fields filled in to make sense —
   /// blocks Save rather than shipping a mission with no way to clear it.
+  /// The mission sheet enforces this too; this is the backstop.
   bool get _canSave =>
-      _missionType != MissionType.qna ||
-      (_qnaQuestionController.text.trim().isNotEmpty &&
-          _qnaAnswerController.text.trim().isNotEmpty);
+      _mission.missionType != MissionType.qna ||
+      (_mission.qnaQuestion.isNotEmpty && _mission.qnaAnswer.isNotEmpty);
 
   Alarm get _draft => (_existing ?? const Alarm(hour: 0, minute: 0)).copyWith(
         hour: _time.hour,
         minute: _time.minute,
         label: _labelController.text.trim(),
         repeatDays: _repeatDays,
-        missionType: _missionType,
         snoozeMinutes: _snoozeMinutes,
-        qnaQuestion: _qnaQuestionController.text.trim(),
-        qnaAnswer: _qnaAnswerController.text.trim(),
+        missionType: _mission.missionType,
+        missionDifficulty: _mission.missionDifficulty,
+        missionCount: _mission.missionCount,
+        qnaQuestion: _mission.qnaQuestion,
+        qnaAnswer: _mission.qnaAnswer,
         enabled: true,
       );
+
+  Future<void> _editMission() async {
+    final result = await showMissionSheet(context, _draft);
+    if (result != null && mounted) setState(() => _mission = result);
+  }
 
   Future<void> _save() async {
     HapticFeedback.lightImpact();
@@ -127,6 +131,10 @@ class _EditAlarmScreenState extends ConsumerState<EditAlarmScreen> {
         return const Scaffold(body: Center(child: CircularProgressIndicator()));
       }
     }
+
+    final t = context.tokens;
+    final text = Theme.of(context).textTheme;
+    final mission = _mission.missionType;
 
     return Scaffold(
       appBar: AppBar(
@@ -175,93 +183,71 @@ class _EditAlarmScreenState extends ConsumerState<EditAlarmScreen> {
                       Center(
                         child: Text(
                           repeatSummary(_repeatDays),
-                          style: Theme.of(context).textTheme.bodySmall,
+                          style: text.bodySmall,
                         ),
                       ),
                     ],
                   ),
                 ),
-                const Gap(AppTokens.space32),
+                const Gap(AppTokens.space24),
 
-                const SectionHeader(
-                  'Mission to dismiss',
-                  subtitle: 'What you have to do before the alarm will stop.',
+                SettingsGroup(
+                  children: [
+                    SettingsRow(
+                      icon: mission.icon,
+                      iconColor: mission == MissionType.none
+                          ? t.textSecondary
+                          : t.missionAccent,
+                      title: 'Mission',
+                      value: missionSummary(_mission),
+                      onTap: _editMission,
+                    ),
+                    SettingsRow(
+                      icon: Icons.snooze_rounded,
+                      title: 'Snooze',
+                      trailing: Align(
+                        alignment: Alignment.centerRight,
+                        child: _Stepper(
+                          value: _snoozeMinutes,
+                          min: 1,
+                          max: 15,
+                          unit: 'min',
+                          onChanged: (v) => setState(() => _snoozeMinutes = v),
+                        ),
+                      ),
+                    ),
+                    SettingsRow(
+                      icon: Icons.label_outline_rounded,
+                      title: 'Label',
+                      trailing: TextField(
+                        controller: _labelController,
+                        textAlign: TextAlign.end,
+                        textCapitalization: TextCapitalization.sentences,
+                        style: text.bodyMedium?.copyWith(color: t.textPrimary),
+                        onChanged: (_) => setState(() {}),
+                        decoration: const InputDecoration(
+                          hintText: 'Gym, Work, Flight…',
+                          filled: false,
+                          isDense: true,
+                          border: InputBorder.none,
+                          enabledBorder: InputBorder.none,
+                          focusedBorder: InputBorder.none,
+                          contentPadding: EdgeInsets.zero,
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
-                const Gap(AppTokens.space12),
-                for (final m
-                    in MissionType.values.where((m) => m.isImplemented)) ...[
-                  _MissionOption(
-                    mission: m,
-                    selected: m == _missionType,
-                    onTap: () => setState(() => _missionType = m),
-                  ),
+                if (mission == MissionType.none) ...[
                   const Gap(AppTokens.space8),
-                ],
-                Padding(
-                  padding: const EdgeInsets.only(left: AppTokens.space4),
-                  child: Text(
-                    'Shake, photo and barcode missions are coming soon.',
-                    style: Theme.of(context).textTheme.bodySmall,
-                  ),
-                ),
-                if (_missionType == MissionType.qna) ...[
-                  const Gap(AppTokens.space4),
-                  AppCard(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Write your own challenge — you\'ll have to type '
-                          'the answer back to dismiss the alarm.',
-                          style: Theme.of(context).textTheme.bodySmall,
-                        ),
-                        const Gap(AppTokens.space12),
-                        TextField(
-                          controller: _qnaQuestionController,
-                          textCapitalization: TextCapitalization.sentences,
-                          onChanged: (_) => setState(() {}),
-                          decoration: const InputDecoration(
-                            labelText: 'Question',
-                            hintText: 'e.g. What time is the school run?',
-                          ),
-                        ),
-                        const Gap(AppTokens.space12),
-                        TextField(
-                          controller: _qnaAnswerController,
-                          textCapitalization: TextCapitalization.sentences,
-                          onChanged: (_) => setState(() {}),
-                          decoration: const InputDecoration(
-                            labelText: 'Answer',
-                            hintText: 'e.g. 7:45',
-                          ),
-                        ),
-                      ],
+                  Padding(
+                    padding: const EdgeInsets.only(left: AppTokens.space4),
+                    child: Text(
+                      'No mission — one tap will stop this alarm.',
+                      style: text.bodySmall?.copyWith(color: t.warning),
                     ),
                   ),
                 ],
-                const Gap(AppTokens.space24),
-
-                const SectionHeader('Snooze length'),
-                const Gap(AppTokens.space12),
-                AppCard(
-                  child: _Stepper(
-                    value: _snoozeMinutes,
-                    min: 1,
-                    max: 15,
-                    unit: 'min',
-                    onChanged: (v) => setState(() => _snoozeMinutes = v),
-                  ),
-                ),
-                const Gap(AppTokens.space32),
-
-                const SectionHeader('Label'),
-                const Gap(AppTokens.space12),
-                TextField(
-                  controller: _labelController,
-                  textCapitalization: TextCapitalization.sentences,
-                  onChanged: (_) => setState(() {}),
-                  decoration: const InputDecoration(hintText: 'Gym, Work, Flight…'),
-                ),
               ],
             ),
           ),
@@ -455,43 +441,6 @@ class _WheelColumnState extends State<_WheelColumn> {
   }
 }
 
-class _MissionOption extends StatelessWidget {
-  const _MissionOption({
-    required this.mission,
-    required this.selected,
-    required this.onTap,
-  });
-
-  final MissionType mission;
-  final bool selected;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final t = context.tokens;
-    final text = Theme.of(context).textTheme;
-
-    return AppCard(
-      onTap: onTap,
-      selected: selected,
-      child: Row(
-        children: [
-          Icon(mission.icon, color: selected ? t.brand : t.textSecondary),
-          const Gap.w(AppTokens.space12),
-          Expanded(
-            child: Text(
-              mission.label,
-              style: text.titleSmall?.copyWith(color: t.textPrimary),
-            ),
-          ),
-          if (selected)
-            Icon(Icons.check_circle_rounded, color: t.brand, size: 20),
-        ],
-      ),
-    );
-  }
-}
-
 class _Stepper extends StatelessWidget {
   const _Stepper({
     required this.value,
@@ -511,13 +460,20 @@ class _Stepper extends StatelessWidget {
   Widget build(BuildContext context) {
     final text = Theme.of(context).textTheme;
     return Row(
+      mainAxisSize: MainAxisSize.min,
       children: [
-        Expanded(child: Text('$value $unit', style: text.titleMedium)),
         _RoundIconButton(
           icon: Icons.remove_rounded,
           onTap: value > min ? () => onChanged(value - 1) : null,
         ),
-        const Gap.w(AppTokens.space12),
+        SizedBox(
+          width: 64,
+          child: Text(
+            '$value $unit',
+            textAlign: TextAlign.center,
+            style: text.titleSmall,
+          ),
+        ),
         _RoundIconButton(
           icon: Icons.add_rounded,
           onTap: value < max ? () => onChanged(value + 1) : null,
@@ -544,10 +500,10 @@ class _RoundIconButton extends StatelessWidget {
         onTap: onTap,
         customBorder: const CircleBorder(),
         child: Padding(
-          padding: const EdgeInsets.all(AppTokens.space8),
+          padding: const EdgeInsets.all(AppTokens.space4 + 2),
           child: Icon(
             icon,
-            size: 20,
+            size: 18,
             color: enabled ? t.textPrimary : t.textFaint,
           ),
         ),

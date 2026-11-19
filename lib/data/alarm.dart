@@ -58,6 +58,8 @@ class Alarm {
   final RepeatDays repeatDays;
   final MissionType missionType;
   final int missionDifficulty; // 1-3, meaning depends on mission type
+  /// How many problems a math mission asks before the alarm stops.
+  final int missionCount;
   final String soundAsset;
   final int snoozeMinutes;
   final int maxSnoozes;
@@ -75,6 +77,7 @@ class Alarm {
     this.repeatDays = const {},
     this.missionType = MissionType.math,
     this.missionDifficulty = 1,
+    this.missionCount = 3,
     this.soundAsset = 'default_alarm',
     this.snoozeMinutes = 5,
     this.maxSnoozes = 3,
@@ -93,6 +96,7 @@ class Alarm {
     RepeatDays? repeatDays,
     MissionType? missionType,
     int? missionDifficulty,
+    int? missionCount,
     String? soundAsset,
     int? snoozeMinutes,
     int? maxSnoozes,
@@ -108,6 +112,7 @@ class Alarm {
       repeatDays: repeatDays ?? this.repeatDays,
       missionType: missionType ?? this.missionType,
       missionDifficulty: missionDifficulty ?? this.missionDifficulty,
+      missionCount: missionCount ?? this.missionCount,
       soundAsset: soundAsset ?? this.soundAsset,
       snoozeMinutes: snoozeMinutes ?? this.snoozeMinutes,
       maxSnoozes: maxSnoozes ?? this.maxSnoozes,
@@ -151,6 +156,7 @@ class Alarm {
       'repeat_days': jsonEncode(repeatDays.toList()),
       'mission_type': missionType.name,
       'mission_difficulty': missionDifficulty,
+      'mission_count': missionCount,
       'sound_asset': soundAsset,
       'snooze_minutes': snoozeMinutes,
       'max_snoozes': maxSnoozes,
@@ -172,6 +178,7 @@ class Alarm {
       repeatDays: rawDays,
       missionType: MissionType.fromName(map['mission_type'] as String? ?? 'math'),
       missionDifficulty: map['mission_difficulty'] as int? ?? 1,
+      missionCount: map['mission_count'] as int? ?? 3,
       soundAsset: map['sound_asset'] as String? ?? 'default_alarm',
       snoozeMinutes: map['snooze_minutes'] as int? ?? 5,
       maxSnoozes: map['max_snoozes'] as int? ?? 3,

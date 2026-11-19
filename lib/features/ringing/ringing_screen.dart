@@ -11,6 +11,7 @@ import '../../core/ui/clock_display.dart';
 import '../../core/ui/gap.dart';
 import '../../core/ui/primary_button.dart';
 import '../../data/alarm.dart';
+import '../../data/alarm_repository.dart';
 import 'missions/math_mission.dart';
 import 'missions/qna_mission.dart';
 
@@ -52,9 +53,16 @@ class _RingingScreenState extends ConsumerState<RingingScreen> {
   bool _dismissed = false;
   DateTime? _lastMuteCall;
 
+  /// The alarm's saved settings, for mission difficulty and problem count.
+  /// Looked up by id rather than passed through the native intent; null
+  /// until loaded, or if the lookup fails, and then the mission uses its
+  /// defaults — it must never be what keeps someone from stopping an alarm.
+  Alarm? _alarm;
+
   @override
   void initState() {
     super.initState();
+    _loadAlarm();
     _clockTimer = Timer.periodic(const Duration(seconds: 1), (_) {
       if (mounted) setState(() => _now = DateTime.now());
     });
@@ -64,6 +72,19 @@ class _RingingScreenState extends ConsumerState<RingingScreen> {
   void dispose() {
     _clockTimer?.cancel();
     super.dispose();
+  }
+
+  Future<void> _loadAlarm() async {
+    try {
+      final alarms = await ref
+          .read(alarmRepositoryProvider)
+          .getAll()
+          .timeout(const Duration(seconds: 2));
+      final match = alarms.where((a) => a.id == widget.alarmId);
+      if (match.isNotEmpty && mounted) setState(() => _alarm = match.first);
+    } catch (_) {
+      // Defaults it is.
+    }
   }
 
   Future<void> _onMissionComplete() async {
@@ -165,6 +186,10 @@ class _RingingScreenState extends ConsumerState<RingingScreen> {
                                 showMission
                                     ? _MissionArea(
                                         missionType: widget.missionType,
+                                        difficulty:
+                                            _alarm?.missionDifficulty ?? 1,
+                                        problemCount:
+                                            _alarm?.missionCount ?? 3,
                                         qnaQuestion: widget.qnaQuestion,
                                         qnaAnswer: widget.qnaAnswer,
                                         onComplete: _onMissionComplete,
@@ -279,6 +304,8 @@ class _StartArea extends StatelessWidget {
 class _MissionArea extends StatelessWidget {
   const _MissionArea({
     required this.missionType,
+    required this.difficulty,
+    required this.problemCount,
     required this.onComplete,
     required this.onInteraction,
     this.qnaQuestion = '',
@@ -286,6 +313,8 @@ class _MissionArea extends StatelessWidget {
   });
 
   final MissionType missionType;
+  final int difficulty;
+  final int problemCount;
   final VoidCallback onComplete;
   final VoidCallback onInteraction;
   final String qnaQuestion;
@@ -296,7 +325,8 @@ class _MissionArea extends StatelessWidget {
     switch (missionType) {
       case MissionType.math:
         return MathMissionView(
-          difficulty: 1,
+          difficulty: difficulty.clamp(1, 3),
+          problemCount: problemCount.clamp(1, 5),
           onComplete: onComplete,
           onInteraction: onInteraction,
         );

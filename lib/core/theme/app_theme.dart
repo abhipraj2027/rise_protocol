@@ -166,6 +166,25 @@ class AppTheme {
           borderSide: BorderSide(color: tokens.brand, width: 2),
         ),
       ),
+      segmentedButtonTheme: SegmentedButtonThemeData(
+        style: ButtonStyle(
+          backgroundColor: WidgetStateProperty.resolveWith(
+            (s) => s.contains(WidgetState.selected)
+                ? tokens.brandMuted
+                : tokens.surface2,
+          ),
+          foregroundColor: WidgetStateProperty.resolveWith(
+            (s) => s.contains(WidgetState.selected)
+                ? tokens.brand
+                : tokens.textSecondary,
+          ),
+          side: WidgetStateProperty.all(BorderSide(color: tokens.hairline)),
+          textStyle: WidgetStateProperty.all(
+            const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+          ),
+          minimumSize: WidgetStateProperty.all(const Size(0, 44)),
+        ),
+      ),
       snackBarTheme: SnackBarThemeData(
         behavior: SnackBarBehavior.floating,
         backgroundColor: tokens.surface2,
