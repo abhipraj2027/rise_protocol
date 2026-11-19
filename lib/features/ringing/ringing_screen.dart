@@ -115,46 +115,64 @@ class _RingingScreenState extends ConsumerState<RingingScreen> {
             const Positioned.fill(child: _AmbientGlow()),
             Positioned.fill(
               child: SafeArea(
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: AppTokens.space24,
-                    vertical: AppTokens.space32,
-                  ),
-                  child: Column(
-                    children: [
-                      const Spacer(flex: 2),
-                      ClockDisplay(time: _now),
-                      if (widget.label.isNotEmpty) ...[
-                        const Gap(AppTokens.space8),
-                        Text(
-                          widget.label,
-                          style: text.titleMedium?.copyWith(
-                            color: t.textSecondary,
+                // Scrolls only as a fallback: on short screens the mission
+                // keypad plus clock can exceed the viewport, and an overflow
+                // here would leave the user unable to stop the alarm.
+                child: LayoutBuilder(
+                  builder: (context, viewport) => SingleChildScrollView(
+                    child: ConstrainedBox(
+                      constraints:
+                          BoxConstraints(minHeight: viewport.maxHeight),
+                      child: IntrinsicHeight(
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: AppTokens.space24,
+                            vertical: AppTokens.space32,
+                          ),
+                          child: Column(
+                            children: [
+                              const Spacer(flex: 2),
+                              // Steps down while a mission is on screen to give
+                              // the keypad room.
+                              ClockDisplay(
+                                time: _now,
+                                style: _missionActive ? text.displayMedium : null,
+                              ),
+                              if (widget.label.isNotEmpty) ...[
+                                const Gap(AppTokens.space8),
+                                Text(
+                                  widget.label,
+                                  style: text.titleMedium?.copyWith(
+                                    color: t.textSecondary,
+                                  ),
+                                ),
+                              ],
+                              const Spacer(flex: 2),
+                              if (!_dismissed)
+                                showMission
+                                    ? _MissionArea(
+                                        missionType: widget.missionType,
+                                        qnaQuestion: widget.qnaQuestion,
+                                        qnaAnswer: widget.qnaAnswer,
+                                        onComplete: _onMissionComplete,
+                                        onInteraction: _quiet,
+                                      )
+                                    : _StartArea(
+                                        missionType: widget.missionType,
+                                        onDismissNoMission: _onMissionComplete,
+                                        onStartMission: () {
+                                          setState(() => _missionActive = true);
+                                          _quiet();
+                                        },
+                                      ),
+                              const Spacer(flex: 3),
+                              if (!_dismissed) _SnoozeButton(onTap: _snooze),
+                              const Gap(AppTokens.space8),
+                            ],
                           ),
                         ),
-                      ],
-                      const Spacer(flex: 2),
-                      if (!_dismissed)
-                        showMission
-                            ? _MissionArea(
-                                missionType: widget.missionType,
-                                qnaQuestion: widget.qnaQuestion,
-                                qnaAnswer: widget.qnaAnswer,
-                                onComplete: _onMissionComplete,
-                                onInteraction: _quiet,
-                              )
-                            : _StartArea(
-                                missionType: widget.missionType,
-                                onDismissNoMission: _onMissionComplete,
-                                onStartMission: () {
-                                  setState(() => _missionActive = true);
-                                  _quiet();
-                                },
-                              ),
-                      const Spacer(flex: 3),
-                      if (!_dismissed) _SnoozeButton(onTap: _snooze),
-                      const Gap(AppTokens.space8),
-                    ],
+                      ),
+                    ),
                   ),
                 ),
               ),
